@@ -1,0 +1,50 @@
+## Build & Artifacts
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+TestResults/
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+_ReSharper*/
+
+## Visual Studio
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.userprefs
+*.ide/
+Generated Files/
+
+## VS Code & JetBrains
+.vscode/
+.idea/
+
+## Database, Local Vaults & Sensitive Test Data
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.vault
+*.bak
+*.pfx
+*.snk
+*.cer
+*.key
+
+## OS Generated
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+## Scratch & Temp
+scratch/
+temp/
+tmp/
+*.tmp
