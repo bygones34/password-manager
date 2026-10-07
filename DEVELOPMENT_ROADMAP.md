@@ -197,7 +197,7 @@ Amaç: hedef Windows ortamında açılan, araç zinciri ve native ihtiyaçları 
 - [x] M0.1 Ürün kapsamı, OS/x64 hedefi, repo adı ve threat model v0 kaydedilir.
 - [x] M0.2 SDK/VS/Windows SDK/Windows App SDK sürümleri gerçek ortamda doğrulanır; ADR-001 stack/toolchain yazılır.
 - [x] M0.3 Solution, gerekli projeler, merkezi paket sürümleri, nullable/analyzers ve gitignore kurulur.
-- [ ] M0.4 WinUI shell; light/dark, NavigationView, sentetik list/detail ve resource token'ları hazırlanır.
+- [x] M0.4 WinUI shell; light/dark, NavigationView, sentetik list/detail ve resource token'ları hazırlanır.
 - [ ] M0.5 Native spike: tray icon + mini pencere, monitor/DPI konumu, foreground HWND yakalama ve session event aboneliği denenir. Spike üretim tamamlanması sayılmaz.
 - [ ] M0.6 SQLite dosya yolu/ACL ve tek instance davranışı; paketli/unpackaged veri yolu farkları belgelenir.
 - [ ] M0.7 Windows CI build/test temeli; cross-platform core tests ayrıca çalışabilir.
