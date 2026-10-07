@@ -1,0 +1,64 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 1. Windows Complete Build & Test (WinUI 3, Windows SDK, and all 13 projects)
+  windows-build-and-test:
+    runs-on: windows-latest
+    name: Windows 11 / .NET 10 Build & Test
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify Environment and Toolchain
+        run: |
+          dotnet --version
+          dotnet --list-sdks
+
+      - name: Restore Dependencies
+        run: dotnet restore PasswordManager.slnx
+
+      - name: Build Solution
+        run: dotnet build PasswordManager.slnx -c Release --no-restore
+
+      - name: Run Tests
+        run: dotnet test PasswordManager.slnx -c Release --no-build --verbosity normal
+
+  # 2. Cross-Platform Core Validation (Validates Domain, Application, Security & Infrastructure portability)
+  cross-platform-core-test:
+    runs-on: ubuntu-latest
+    name: Ubuntu Core Test (Platform Independent Layers)
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build Core Projects
+        run: |
+          dotnet build src/PasswordManager.Domain/PasswordManager.Domain.csproj -c Release
+          dotnet build src/PasswordManager.Application/PasswordManager.Application.csproj -c Release
+          dotnet build src/PasswordManager.Security/PasswordManager.Security.csproj -c Release
+          dotnet build src/PasswordManager.Infrastructure/PasswordManager.Infrastructure.csproj -c Release
+
+      - name: Run Core Tests
+        run: |
+          dotnet test tests/PasswordManager.Domain.Tests/PasswordManager.Domain.Tests.csproj -c Release
+          dotnet test tests/PasswordManager.Application.Tests/PasswordManager.Application.Tests.csproj -c Release
+          dotnet test tests/PasswordManager.Security.Tests/PasswordManager.Security.Tests.csproj -c Release
+          dotnet test tests/PasswordManager.Infrastructure.Tests/PasswordManager.Infrastructure.Tests.csproj -c Release
