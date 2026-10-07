@@ -8,7 +8,18 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 
-    <!-- CLI (dotnet build) WinUI 3 AppX/PRI task fallback for Visual Studio Insiders -->
+    <!-- CLI (dotnet build) WinUI 3 AppX/PRI task fallback across different Visual Studio environments (CI & Local) -->
+    <!-- Visual Studio 2026 / Insiders (Local Development) -->
     <AppxMSBuildToolsPath Condition="'$(AppxMSBuildToolsPath)' == '' and Exists('C:\Program Files\Microsoft Visual Studio\18\Insiders\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\')">C:\Program Files\Microsoft Visual Studio\18\Insiders\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="'$(AppxMSBuildToolsPath)' == '' and Exists('C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\')">C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="'$(AppxMSBuildToolsPath)' == '' and Exists('C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\')">C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="'$(AppxMSBuildToolsPath)' == '' and Exists('C:\Program Files\Microsoft Visual Studio\18\Preview\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\')">C:\Program Files\Microsoft Visual Studio\18\Preview\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\</AppxMSBuildToolsPath>
+
+    <!-- Visual Studio 2022 (GitHub Actions CI & Standard Environments) -->
+    <AppxMSBuildToolsPath Condition="'$(AppxMSBuildToolsPath)' == '' and Exists('C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\')">C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="'$(AppxMSBuildToolsPath)' == '' and Exists('C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\')">C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="'$(AppxMSBuildToolsPath)' == '' and Exists('C:\Program Files\Microsoft Visual Studio\2022\Professional\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\')">C:\Program Files\Microsoft Visual Studio\2022\Professional\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="'$(AppxMSBuildToolsPath)' == '' and Exists('C:\Program Files\Microsoft Visual Studio\2022\Preview\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\')">C:\Program Files\Microsoft Visual Studio\2022\Preview\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="'$(AppxMSBuildToolsPath)' == '' and Exists('C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\')">C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\</AppxMSBuildToolsPath>
   </PropertyGroup>
 </Project>

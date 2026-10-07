@@ -37,6 +37,7 @@ Current task: M0.7 (Tamamlandı) / M1 Başlangıcı (Sırada)
   - Mimari tasarım ve güvenlik detayları `docs/STORAGE_AND_SINGLE_INSTANCE.md` dokümanında belgelendi.
 * **M0.7 — Windows CI Build/Test Temeli ve Cross-Platform Doğrulama:**
   - GitHub Actions iş akışı (`.github/workflows/ci.yml`) oluşturuldu; Windows ortamında tam çözüm derleme/test adımları ve Ubuntu üzerinde platform bağımsız çekirdek projeler (`Domain`, `Application`, `Security`, `Infrastructure`) için test matrisi yapılandırıldı.
+  - CI runner ortamı (`windows-latest`, VS 2022 Enterprise) için `Directory.Build.props` ve iş akışına `AppxMSBuildToolsPath` dinamik tespit adımı eklendi; WinUI 3 CLI derleme uyumluluğu sağlandı.
   - Release modunda derleme ve testler başarıyla çalıştırıldı.
 
 ---
