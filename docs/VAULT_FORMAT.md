@@ -87,7 +87,7 @@ flowchart TD
 * Kasa oluşturulduğunda 32 bayt kriptografik rastgele (CSPRNG) Kök Anahtar (`RootKey`) üretilir.
 * Kök Anahtar, KEK kullanılarak **AES-256-GCM** ile şifrelenir.
 * **Key Wrap AAD (Additional Authenticated Data):**  
-  Başlıktaki ilk 68 bayt kanonik olarak bağlanır:
+  Başlıktaki ilk 72 bayt kanonik olarak bağlanır:
   $$\text{AAD}_{\text{wrap}} = \text{Magic (4B)} \mathbin{\Vert} \text{CryptoFormatVersion (4B)} \mathbin{\Vert} \text{VaultId (16B)} \mathbin{\Vert} \text{KdfId (2B)} \mathbin{\Vert} \text{MemoryKiB (4B)} \mathbin{\Vert} \text{Iterations (4B)} \mathbin{\Vert} \text{Parallelism (4B)} \mathbin{\Vert} \text{SaltLength (2B)} \mathbin{\Vert} \text{Salt (32B)}$$
   Bu sayede saldırganın dosyadaki KDF parametrelerini veya Salt'ı değiştirmesi durumunda auth tag doğrulaması başarısız olur ve anahtar çözülmez.
 

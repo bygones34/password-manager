@@ -58,20 +58,31 @@ Current task: M1.1 (Tamamlandı) / M1.2 (Sırada)
     - `Argon2idVectorTests`: RFC 9106 Bölüm 5.3 resmi test vektörü ($32 \text{ KiB}, t=3, p=4$, parola, salt, secret, AAD ve 32 bayt tag) birebir doğrulanarak geçti; determinizm ve 1-bit hassasiyet testleri eklendi.
     - `KdfBoundingTests`: Bellek sınırları (min 16 MiB, max 512 MiB), iterasyon sınırları (1..10), paralellik sınırları (1..16), salt uzunluğu (16..64 bayt), anahtar uzunluğu (16..64 bayt) ve null/uyumsuz girdi testleri yapıldı; tüm sınır ihlalleri başarıyla `KdfValidationException` fırlattı.
     - `Argon2idBenchmarkTests`: 64 MiB masaüstü profili yürütüldü; işlem süresi ve asenkron iptal davranışı doğrulandı.
-  - `DEVELOPMENT_ROADMAP.md` güncellendi (`M1.2` tamamlandı olarak işaretlendi).
+* **M1.3 — CSPRNG, Key Wrap, HKDF Anahtar Ayrımı ve AEAD Zarf Implementasyonu:**
+  - `Application` katmanında `EncryptedEnvelope`, `WrappedKeyData`, `VaultHeaderData` modelleri, `CryptoAuthenticationException` ve `IAeadEnvelopeService`, `IVaultHeaderService` portları tanımlandı.
+  - `Security` katmanında `VaultHeaderService` ile 132 baytlık ikili başlık serileştirmesi, deserializasyonu, `HeaderAad` (72 bayt) hesabı ve Anti-DoS sınır denetimleri uygulandı.
+  - `Security` katmanında `AeadEnvelopeService` ile CSPRNG rastgele üretimi, AES-256-GCM ile Kök Anahtar sarmalama (`WrapRootKey` / `UnwrapRootKey`), RFC 5869 `HKDF-SHA-256` ile `RecordKey` ve `ManifestKey` ayrımı, `RecordAad` (48 bayt) ve `ManifestAad` (34 bayt) kanonik bağlam kilitleri, AEAD zarf şifreleme/çözme ve fail-closed hata yönetimi uygulandı.
+  - `PasswordManager.Security.Tests` projesine 5 yeni test sınıfı eklendi:
+    - `HkdfVectorTests`: RFC 5869 Test Case 1 (`HKDF-Expand` ve `HKDF.DeriveKey` SHA-256) resmi test vektörleri birebir doğrulandı.
+    - `AesGcmVectorTests`: NIST SP 800-38D resmi test vektörü doğrulandı.
+    - `KeySeparationTests`: SEC-B01 (`RecordKey != ManifestKey != RootKey != KEK`), SEC-B02 (farklı `VaultId`), SEC-B03 (çapraz anahtar çözme engeli) doğrulandı.
+    - `EnvelopeTamperTests`: SEC-C01 (1-bit flip), SEC-C02 (tag bozma), SEC-C03 (RecordId substitution), SEC-C04 (çapraz kasa swap), SEC-C05 (header AAD kurcalama), SEC-C06 (geçersiz magic/versiyon) testleri başarıyla geçti.
+    - `NonceRandomnessTests`: SEC-D01 (1,000 ardışık şifrelemede sıfır çakışma), SEC-D02 (yüksek entropi) doğrulandı.
+    - `VaultHeaderSerializationTests`: 132 baytlık ikili başlığın tam roundtrip ve boyut kontrolleri doğrulandı.
+  - `DEVELOPMENT_ROADMAP.md` güncellendi (`M1.3` tamamlandı olarak işaretlendi).
 
 ---
 
 ## 2. Doğrulama ve Çalıştırılan Komutlar
-* `dotnet test tests/PasswordManager.Security.Tests/PasswordManager.Security.Tests.csproj -c Release` → **26 test geçti, 0 hata, 0 atlanan**.
-* `dotnet test PasswordManager.slnx -c Release` → Çözüm genelindeki 6 test projesinde **46 test geçti, 0 hata, 0 atlanan (%100 başarı)**.
+* `dotnet test tests/PasswordManager.Security.Tests/PasswordManager.Security.Tests.csproj -c Release` → **46 test geçti, 0 hata, 0 atlanan**.
+* `dotnet test PasswordManager.slnx -c Release` → Çözüm genelindeki 6 test projesinde **66 test geçti, 0 hata, 0 atlanan (%100 başarı)**.
 * `git diff --check` → Temiz.
 
 ---
 
 ## 3. Manuel Doğrulama Durumu
-* RFC 9106 test vektörü resmi IETF çıktısıyla (`0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659`) bayt seviyesinde doğrulandı.
-* Durum: **M1.2 Alt Görev Kabul Kriterleri Karşılandı.**
+* RFC 5869 HKDF-SHA-256 ve NIST SP 800-38D AES-GCM resmi kriptografik test vektörleri bağımsız olarak doğrulandı.
+* Durum: **M1.3 Alt Görev Kabul Kriterleri Karşılandı.**
 
 ---
 
@@ -88,4 +99,4 @@ Current task: M1.1 (Tamamlandı) / M1.2 (Sırada)
 
 ## 5. Sıradaki Miltaşı ve Görev
 * **Milestone M1 — Secure Vault Çekirdeği**
-  - **M1.3:** CSPRNG, Key Wrap (AES-256-GCM), HKDF-SHA-256 separation (RecordKey, ManifestKey), record/manifest AEAD zarf implementasyonu ve kurcalama/bütünlük testleri.
+  - **M1.4:** Encrypted envelope şeması ve EF Core migration; veritabanı şema versiyonu (v1) ile kripto format versiyonunun (v1) ayrılması.
