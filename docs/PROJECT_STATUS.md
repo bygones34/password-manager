@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-10
 Current milestone: M1 (Secure Vault Çekirdeği) — DEVAM EDİYOR
-Current task: M1.1 (Tamamlandı) / M1.2 (Sırada)
+Current task: M1.5 (Tamamlandı) / M1.6 (Sırada)
 
 ---
 
@@ -82,18 +82,36 @@ Current task: M1.1 (Tamamlandı) / M1.2 (Sırada)
     - `DatabaseZeroPlaintextTests` (Kategori G: SEC-G01): Şifreli kayıt eklenmiş SQLite `.db` ve `-wal` dosyaları taranarak sentetik parola ve kullanıcı adının fiziksel dosyada sıfır plaintext olarak saklandığı kanıtlandı; `VaultRecords` tablosunda hiçbir hassas düz metin sütununun bulunmadığı doğrulandı.
   - `DEVELOPMENT_ROADMAP.md` güncellendi (`M1.4` tamamlandı olarak işaretlendi).
 
+* **M1.5 — Create/Unlock/Lock Yaşam Döngüsü, State Machine, Operation Scope, Key Dispose ve İptal Mekanizması:**
+  - `Domain` katmanında `VaultState` enum (`NoVault`, `Locked`, `Unlocking`, `Unlocked`, `Locking`, `Faulted`) tanımlandı.
+  - `Application` katmanında hassas operasyon ve oturum modelleri geliştirildi:
+    - `VaultSession`: Çözülmüş simetrik anahtarları (`RootKey`, `RecordKey`, `ManifestKey`), artan `SessionGeneration` numarasını ve oturum iptal kaynağını (`CancellationTokenSource`) yönetir. `Dispose` anında `CryptographicOperations.ZeroMemory` ile tüm anahtar bayt dizilerini deterministik olarak sıfırlar (SEC-F01) ve bağlı iptal sinyalini tetikler.
+    - `IOperationScope` & `OperationScope`: Decrypt, reveal ve auto-fill gibi hassas operasyonları oturum jenerasyonuna bağlar; kasa kilitlendiğinde veya jenerasyon değiştiğinde bekleyen operasyonları `OperationCanceledException` ile anında durdurur (SEC-F02), geç gelen verilerin UI'ya aktarılmasını engeller.
+    - `VaultStateChangedEventArgs`: Durum geçişlerini ve aktif jenerasyon numarasını yayınlar.
+    - `IVaultLifecycleManager` portu ve `VaultLifecycleManager` orkestratörü geliştirildi:
+      - `SemaphoreSlim(1, 1)` ile tüm durum mutasyonları serialize edildi; eşzamanlı çift unlock girişimi engellendi.
+      - `CreateVaultAsync`: Dosya varlık kontrolü, DB şema başlatma, Argon2id KDF türetimi, kök anahtar sarmalama (AES-256-GCM + Header AAD), başlangıç manifesti oluşturma, $O(1)$ oturum aktivasyonu ve geçici KEK/anahtar belleklerinin anında sıfırlanmasını sağlar.
+      - `UnlockVaultAsync`: 132 bayt başlık deserializasyonu, sınır denetimleri, Argon2id KDF (UTF-8, no-trim, no-normalize), kök anahtar unwrap, manifest bütünlük kontrolü ve fail-closed koruması (`CryptoAuthenticationException` durumunda sıfırlama ve kilitli kalma).
+      - `LockVaultAsync`: İdempotent kilitlenme; aktif oturumu ve tüm anahtar materyalini bellekten temizler, operasyon scope'larını iptal eder.
+  - `PasswordManager.Application.Tests` projesine 23 kapsamlı birim ve entegrasyon testi eklendi:
+    - `VaultSessionTests`: Anahtar klonlama, boyut doğrulama, deterministik `ZeroMemory` temizliği (SEC-F01) ve `Dispose` idempotentliği test edildi.
+    - `OperationScopeTests`: Jenerasyon takibi, oturum kilitlenmesinde iptal (SEC-F02), harici token entegrasyonu ve sonraki jenerasyonlara sonuç aktarımının engellenmesi doğrulandı.
+    - `VaultLifecycleManagerTests`: SQLite veritabanı ve gerçek güvenlik servisleriyle uçtan uca döngü test edildi (`NoVault` → `Create` → `Unlocked` → `Lock` → `Locked` → `Unlock` → `Unlocked`); eşzamanlı unlock engellemesi, yanlış parolada ve bozuk manifestte fail-closed kilit kalışı, lock anında arkaplan görevlerinin anında iptali ve bellek sıfırlaması kanıtlandı.
+  - `DEVELOPMENT_ROADMAP.md` güncellendi (`M1.5` tamamlandı olarak işaretlendi).
+
 ---
 
 ## 2. Doğrulama ve Çalıştırılan Komutlar
-* `dotnet test tests/PasswordManager.Infrastructure.Tests/PasswordManager.Infrastructure.Tests.csproj -c Release` → **9 test geçti, 0 hata, 0 atlanan**.
-* `dotnet test PasswordManager.slnx -c Release` → Çözüm genelindeki 6 test projesinde **74 test geçti, 0 hata, 0 atlanan (%100 başarı)**.
+* `dotnet test tests/PasswordManager.Application.Tests/PasswordManager.Application.Tests.csproj -c Release` → **23 test geçti, 0 hata, 0 atlanan**.
+* `dotnet test PasswordManager.slnx -c Release` → Çözüm genelindeki 6 test projesinde **96 test geçti, 0 hata, 0 atlanan (%100 başarı)**.
 * `git diff --check` → Temiz.
 
 ---
 
 ## 3. Manuel Doğrulama Durumu
-* SEC-G01: SQLite `.db` ve `-wal` dosyalarında bayt seviyesinde sentetik canary taraması yapıldı; veritabanı şemasında ve disk dosyalarında sıfır plaintext (zero-plaintext) garantisi kanıtlandı.
-* Durum: **M1.4 Alt Görev Kabul Kriterleri Karşılandı.**
+* SEC-F01: `VaultSession.Dispose()` ve `LockVaultAsync()` çağrıldığında `RootKey`, `RecordKey` ve `ManifestKey` dizilerinin bellekte tüm baytlarının `0x00` olduğu doğrulandı.
+* SEC-F02: Kasa kilitlendiğinde bekleyen asenkron isteklerin `OperationScope.CancellationToken` ile anında iptal edildiği ve sonraki jenerasyona veri teslimatının engellendiği doğrulandı.
+* Durum: **M1.5 Alt Görev Kabul Kriterleri Karşılandı.**
 
 ---
 
@@ -110,4 +128,4 @@ Current task: M1.1 (Tamamlandı) / M1.2 (Sırada)
 
 ## 5. Sıradaki Miltaşı ve Görev
 * **Milestone M1 — Secure Vault Çekirdeği**
-  - **M1.5:** Create/unlock/lock, state machine (`NoVault`, `Locked`, `Unlocking`, `Unlocked`, `Locking`, `Faulted`), operation scope, deterministic key dispose ve cancellation implementasyonu.
+  - **M1.6:** Başlangıç auto-lock, Windows WTS session-lock / suspend olayları entegrasyonu ve log whitelist mekanizması.

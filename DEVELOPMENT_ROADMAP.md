@@ -212,7 +212,7 @@ Amaç: şifreleme formatı ve create/unlock/lock yaşam döngüsü.
 - [x] M1.2 Argon2id paket seçimi; RFC vektörleri ve benchmark; sınır doğrulama implementasyonu.
 - [x] M1.3 CSPRNG, key wrap, HKDF separation, record/manifest AEAD implementasyonu.
 - [x] M1.4 Encrypted envelope şeması ve EF migration; schema version ile crypto format version ayrılır.
-- [ ] M1.5 Create/unlock/lock, state machine, operation scope, key dispose ve cancellation.
+- [x] M1.5 Create/unlock/lock, state machine, operation scope, key dispose ve cancellation.
 - [ ] M1.6 Başlangıç auto-lock/session-lock/suspend olayları; log whitelist.
 - [ ] M1.7 Güvenlik testleri ve dosya canary taraması.
 
