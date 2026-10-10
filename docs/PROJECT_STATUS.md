@@ -70,19 +70,30 @@ Current task: M1.1 (Tamamlandı) / M1.2 (Sırada)
     - `NonceRandomnessTests`: SEC-D01 (1,000 ardışık şifrelemede sıfır çakışma), SEC-D02 (yüksek entropi) doğrulandı.
     - `VaultHeaderSerializationTests`: 132 baytlık ikili başlığın tam roundtrip ve boyut kontrolleri doğrulandı.
   - `DEVELOPMENT_ROADMAP.md` güncellendi (`M1.3` tamamlandı olarak işaretlendi).
+* **M1.4 — Encrypted Envelope Şeması, EF Core SQLite Entegrasyonu ve Plaintext İzolasyonu:**
+  - `Directory.Packages.props` ve `PasswordManager.Infrastructure.csproj` projelerine `Microsoft.EntityFrameworkCore.Sqlite` (9.0.2) ve güvenlik açığı yaması içeren `SQLitePCLRaw.bundle_e_sqlite3` (2.1.13) eklendi.
+  - `Application` katmanında `IVaultStorageService` ve `IVaultDatabaseInitializer` portları tanımlandı. Düz metin (plaintext) credential hiçbir port veya parametreye sızdırılmadı.
+  - `Infrastructure` katmanında `VaultHeaderEntity`, `VaultManifestEntity`, `VaultRecordEntity` ve `VaultMetadataEntity` varlıkları geliştirildi. `VaultDbContext` ile `VaultHeader` (tek satır kontrolü), `VaultManifest`, `VaultRecords` ve `VaultMetadata` tabloları eşlendi.
+  - `VaultDatabaseInitializer` ile veritabanı şema versiyonu (`CurrentSchemaVersion = 1`) ile kripto format versiyonu (`CurrentFormatVersion = 1`) kesin çizgilerle ayrıldı; SQLite WAL modu (`PRAGMA journal_mode = WAL;`) ve foreign keys etkinleştirildi; gelecekteki desteklenmeyen şema versiyonları için fail-closed koruması sağlandı.
+  - `SqliteVaultStorageService` implementasyonu ile başlık, manifest ve kayıt zarflarının (encrypted envelopes) CRUD operasyonları sağlandı.
+  - `PasswordManager.Infrastructure.Tests` projesine 3 yeni test sınıfı eklendi:
+    - `VaultDatabaseInitializerTests`: Veritabanı tablolarının oluşturulması, WAL modunun etkinliği, idempotent açılış ve gelecekteki şema sürümünde fail-closed davranışı doğrulandı.
+    - `SqliteVaultStorageServiceTests`: Başlık (132B), manifest ve kayıt zarflarının tam CRUD döngüsü test edildi.
+    - `DatabaseZeroPlaintextTests` (Kategori G: SEC-G01): Şifreli kayıt eklenmiş SQLite `.db` ve `-wal` dosyaları taranarak sentetik parola ve kullanıcı adının fiziksel dosyada sıfır plaintext olarak saklandığı kanıtlandı; `VaultRecords` tablosunda hiçbir hassas düz metin sütununun bulunmadığı doğrulandı.
+  - `DEVELOPMENT_ROADMAP.md` güncellendi (`M1.4` tamamlandı olarak işaretlendi).
 
 ---
 
 ## 2. Doğrulama ve Çalıştırılan Komutlar
-* `dotnet test tests/PasswordManager.Security.Tests/PasswordManager.Security.Tests.csproj -c Release` → **46 test geçti, 0 hata, 0 atlanan**.
-* `dotnet test PasswordManager.slnx -c Release` → Çözüm genelindeki 6 test projesinde **66 test geçti, 0 hata, 0 atlanan (%100 başarı)**.
+* `dotnet test tests/PasswordManager.Infrastructure.Tests/PasswordManager.Infrastructure.Tests.csproj -c Release` → **9 test geçti, 0 hata, 0 atlanan**.
+* `dotnet test PasswordManager.slnx -c Release` → Çözüm genelindeki 6 test projesinde **74 test geçti, 0 hata, 0 atlanan (%100 başarı)**.
 * `git diff --check` → Temiz.
 
 ---
 
 ## 3. Manuel Doğrulama Durumu
-* RFC 5869 HKDF-SHA-256 ve NIST SP 800-38D AES-GCM resmi kriptografik test vektörleri bağımsız olarak doğrulandı.
-* Durum: **M1.3 Alt Görev Kabul Kriterleri Karşılandı.**
+* SEC-G01: SQLite `.db` ve `-wal` dosyalarında bayt seviyesinde sentetik canary taraması yapıldı; veritabanı şemasında ve disk dosyalarında sıfır plaintext (zero-plaintext) garantisi kanıtlandı.
+* Durum: **M1.4 Alt Görev Kabul Kriterleri Karşılandı.**
 
 ---
 
@@ -99,4 +110,4 @@ Current task: M1.1 (Tamamlandı) / M1.2 (Sırada)
 
 ## 5. Sıradaki Miltaşı ve Görev
 * **Milestone M1 — Secure Vault Çekirdeği**
-  - **M1.4:** Encrypted envelope şeması ve EF Core migration; veritabanı şema versiyonu (v1) ile kripto format versiyonunun (v1) ayrılması.
+  - **M1.5:** Create/unlock/lock, state machine (`NoVault`, `Locked`, `Unlocking`, `Unlocked`, `Locking`, `Faulted`), operation scope, deterministic key dispose ve cancellation implementasyonu.
