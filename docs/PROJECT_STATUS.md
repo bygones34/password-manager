@@ -50,19 +50,28 @@ Current task: M1.1 (Tamamlandı) / M1.2 (Sırada)
   - `docs/adr/ADR-003.md` kabul edildi: Argon2id KDF Parametreleri, Paket Seçimi (`Konscious.Security.Cryptography.Argon2`) ve Bounded Anti-DoS Doğrulama Politikası (Bellek: 16-512 MiB, İterasyon: 1-10, Paralellik: 1-16, Salt: 16-64 bayt).
   - `docs/SECURITY_TEST_MATRIX.md` oluşturuldu: RFC 9106/5869/NIST vektörleri, key separation, tampering/substitution, nonce uniqueness, bounded DoS, bellek sıfırlama ve SQLite/log canary tarama gereksinimleri belgelendi.
   - `DEVELOPMENT_ROADMAP.md` güncellendi (`M1.1` tamamlandı olarak işaretlendi).
+* **M1.2 — Argon2id Paket Entegrasyonu, RFC Vektörleri, Benchmark ve Sınır Doğrulama:**
+  - `Directory.Packages.props` merkezi paket yönetimine `Konscious.Security.Cryptography.Argon2` (1.3.1) eklendi; `PasswordManager.Security` projesine referans bağlandı.
+  - `Application` katmanında `IKeyDerivationService` portu, `KdfParameters` modeli (RFC 9106 sınır sabitleri ve varsayılan masaüstü profili: 64 MiB RAM, 3 iterasyon, 4 kanal, 32 bayt salt, 32 bayt KEK), `KdfValidationException` ve `KdfParametersValidator` geliştirildi.
+  - `Security` katmanında `Argon2idKeyDerivationService` implementasyonu tamamlandı; senkron (`DeriveKey`), asenkron (`DeriveKeyAsync`, `CancellationToken` destekli) ve düşük bellekli RFC test vektörleri için `DeriveRaw` metotları uygulandı. Hesaplama öncesinde katı sınır doğrulaması yapılması sağlandı.
+  - `PasswordManager.Security.Tests` projesinde 3 yeni test sınıfı oluşturuldu:
+    - `Argon2idVectorTests`: RFC 9106 Bölüm 5.3 resmi test vektörü ($32 \text{ KiB}, t=3, p=4$, parola, salt, secret, AAD ve 32 bayt tag) birebir doğrulanarak geçti; determinizm ve 1-bit hassasiyet testleri eklendi.
+    - `KdfBoundingTests`: Bellek sınırları (min 16 MiB, max 512 MiB), iterasyon sınırları (1..10), paralellik sınırları (1..16), salt uzunluğu (16..64 bayt), anahtar uzunluğu (16..64 bayt) ve null/uyumsuz girdi testleri yapıldı; tüm sınır ihlalleri başarıyla `KdfValidationException` fırlattı.
+    - `Argon2idBenchmarkTests`: 64 MiB masaüstü profili yürütüldü; işlem süresi ve asenkron iptal davranışı doğrulandı.
+  - `DEVELOPMENT_ROADMAP.md` güncellendi (`M1.2` tamamlandı olarak işaretlendi).
 
 ---
 
 ## 2. Doğrulama ve Çalıştırılan Komutlar
+* `dotnet test tests/PasswordManager.Security.Tests/PasswordManager.Security.Tests.csproj -c Release` → **26 test geçti, 0 hata, 0 atlanan**.
+* `dotnet test PasswordManager.slnx -c Release` → Çözüm genelindeki 6 test projesinde **46 test geçti, 0 hata, 0 atlanan (%100 başarı)**.
 * `git diff --check` → Temiz.
-* Kod ve dokümantasyon bütünlüğü doğrulandı; proje derleme ve test ortamı hazır durumda.
-* Mevcut test matrisi: 21 birim testi (%100 başarılı).
 
 ---
 
 ## 3. Manuel Doğrulama Durumu
-* Mimari dokümanlar ve şartnameler karşılıklı tutarlılık ve AGENTS.md değişmez güvenlik kuralları açısından denetlendi.
-* Durum: **M1.1 Alt Görev Kabul Kriterleri Karşılandı.**
+* RFC 9106 test vektörü resmi IETF çıktısıyla (`0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659`) bayt seviyesinde doğrulandı.
+* Durum: **M1.2 Alt Görev Kabul Kriterleri Karşılandı.**
 
 ---
 
@@ -79,4 +88,4 @@ Current task: M1.1 (Tamamlandı) / M1.2 (Sırada)
 
 ## 5. Sıradaki Miltaşı ve Görev
 * **Milestone M1 — Secure Vault Çekirdeği**
-  - **M1.2:** Argon2id paket seçimi (`Konscious.Security.Cryptography.Argon2`), RFC 9106 resmi test vektörleri, masaüstü benchmark'ı ve güvenilmez parametreler için sınır doğrulama (bounded validation) implementasyonu.
+  - **M1.3:** CSPRNG, Key Wrap (AES-256-GCM), HKDF-SHA-256 separation (RecordKey, ManifestKey), record/manifest AEAD zarf implementasyonu ve kurcalama/bütünlük testleri.
