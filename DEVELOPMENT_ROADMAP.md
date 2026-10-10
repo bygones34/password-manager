@@ -208,7 +208,7 @@ Amaç: hedef Windows ortamında açılan, araç zinciri ve native ihtiyaçları 
 
 Amaç: şifreleme formatı ve create/unlock/lock yaşam döngüsü.
 
-- [ ] M1.1 Threat model v1, VAULT_FORMAT v1 ve key/KDF ADR'leri yazılır.
+- [x] M1.1 Threat model v1, VAULT_FORMAT v1 ve key/KDF ADR'leri yazılır.
 - [ ] M1.2 Argon2id paket seçimi; RFC vektörleri ve benchmark; sınır doğrulama implementasyonu.
 - [ ] M1.3 CSPRNG, key wrap, HKDF separation, record/manifest AEAD implementasyonu.
 - [ ] M1.4 Encrypted envelope şeması ve EF migration; schema version ile crypto format version ayrılır.

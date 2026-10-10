@@ -1,23 +1,26 @@
-# Threat Model — PasswordManager (v0)
+# Threat Model — PasswordManager (v1.0)
 
-Sürüm: 0.1 (Taslak / M0.1) • Tarih: 5 Ekim 2026 • Durum: Aktif
-
-Bu belge, `PasswordManager` (kod adı) projesinin M0 aşamasındaki başlangıç tehdit modelini tanımlar. Proje geliştikçe ve yeni bileşenler (M1 Kasa Çekirdeği, M4 System Tray, M5 Auto-fill, M8 Browser Entegrasyonu) eklendikçe güncellenecektir.
+* **Sürüm:** 1.0 (Milestone M1.1 Güncellemesi)
+* **Tarih:** 2026-10-10
+* **Durum:** Onaylandı / Aktif
+* **Hedef Platform:** Windows 11 (x64)
+* **İlgili Standartlar & Dokümanlar:** `VAULT_FORMAT.md`, `ADR-002`, `ADR-003`, `SECURITY_TEST_MATRIX.md`
 
 ---
 
 ## 1. Sistem Tanımı ve Kapsam
 
 ### 1.1. Ürün Hedefi
-Windows 11 üzerinde çalışan, önce yerel (local-first), WinUI 3 tabanlı modern arayüze ve bildirim alanı (system tray) mini kasasına sahip, kullanıcı denetimli otomatik doldurma (auto-fill) sağlayan parola yöneticisi.
+Windows 11 üzerinde çalışan, önce yerel (local-first), WinUI 3 tabanlı modern arayüze ve bildirim alanı (system tray) mini kasasına sahip, kullanıcı denetimli otomatik doldurma (auto-fill) sağlayan parola yöneticisi (`PasswordManager`).
 
 ### 1.2. Hedef Platform ve Çalışma Ortamı
 * **İşletim Sistemi:** Windows 11 (x64 mimarisi).
 * **Kullanıcı Yetki Seviyesi:** Standart kullanıcı (UAC elevation veya UIAccess gerektirmez).
-* **Ağ Durumu:** İlk sürüm tamamen internetsiz (offline) çalışır. Harici favicon/ikon indirme servisi veya telemetri bulunmaz; hesap alan adları ve parolalar internete iletilmez.
+* **Ağ Durumu:** Tamamen internetsiz (offline) çalışır. Harici favicon/ikon indirme servisi veya telemetri bulunmaz; hesap alan adları ve parolalar internete iletilmez.
+* **Depolama Modeli:** SQLite üzerinde AES-256-GCM ile şifrelenmiş zarflar (encrypted envelope). Düz metin (plaintext) veritabanı alanı, arama dizini veya log dosyası bulunmaz.
 
-### 1.3. Kapsam Dışı Bırakılanlar (v0 / Başlangıç)
-* Bulut senkronizasyonu (Cloud Sync) ve uzak sunucu mimarisi.
+### 1.3. Kapsam Dışı Bırakılanlar (v1 Kapsamı)
+* Bulut senkronizasyonu (Cloud Sync) ve uzak sunucu mimarisi (M10+ sonrası).
 * Tarayıcı eklentileri (Chromium / Firefox) — M8 aşamasına kadar kapsam dışıdır.
 * Windows Hello / Biyometrik entegrasyon — M7 aşamasına kadar kapsam dışıdır.
 * OS oturum açma (Windows Sign-in), UAC ve güvenli masaüstü (Secure Desktop) ekranlarında otomatik doldurma.
@@ -26,64 +29,57 @@ Windows 11 üzerinde çalışan, önce yerel (local-first), WinUI 3 tabanlı mod
 
 ---
 
-## 2. Korunan Varlıklar (Assets)
+## 2. Korunan Varlıklar (Assets) ve Gizlilik Düzeyleri
 
-1. **Master Password (Ana Parola):** Kullanıcının kasayı açmak için girdiği tek birincil sır.
-2. **Kriptografik Anahtarlar:**
-   - KEK (Key Encryption Key - Argon2id ile türetilen anahtar sarmalama anahtarı).
-   - Kasa Kök Anahtarı (CSPRNG ile üretilen 32 bayt rastgele anahtar).
-   - Kayıt ve Manifest Anahtarları (HKDF-SHA-256 ile amaç etiketlerine göre türetilen anahtarlar).
-3. **Kayıt Verileri (Credentials & Metadata):** Hesap başlıkları, kullanıcı adları, parolalar, URL/domain eşlemeleri, notlar, kategoriler, favoriler ve revizyon bilgileri.
-4. **Kasa Manifesti ve Bütünlüğü:** Hangi kayıtların var olduğu, kategori tanımları, kasa yapılandırması.
-5. **Açık Kasa Oturumu (Active Session):** Bellekteki açık oturum durumu, geçici çözülmüş kayıtlar, arama sonuçları.
-6. **Yedek Dosyaları:** Dışa aktarılan veya otomatik oluşturulan şifreli kasa yedekleri.
-7. **Hedef Doğrulama Bağlamı:** Auto-fill sırasında hedeflenen uygulamanın kimlik ve pencere doğruluğu.
+| Varlık ID | Varlık Adı | Tanım ve Koruma Seviyesi | Yaşam Döngüsü & Saklama Biçimi |
+| --- | --- | --- | --- |
+| **A-01** | **Master Password** | Kullanıcının kasayı açmak için girdiği tek birincil parola. En yüksek gizlilik. | Asla diske yazılmaz, loglanmaz; KEK türetildikten hemen sonra bellekten `ZeroMemory` ile temizlenir. |
+| **A-02** | **KEK (Key Encryption Key)** | Master password ve salt ile Argon2id üzerinden türetilen 256-bit geçici anahtar. | Yalnızca kasa açılırken/kilitlenirken kök anahtarı çözmek/sarmak için bellekte tutulur, diske yazılmaz. |
+| **A-03** | **Kasa Kök Anahtarı (Root Key)** | CSPRNG ile üretilen bağımsız 256-bit birincil anahtar. | Diskte KEK ile sarılmış (AES-256-GCM wrapped) olarak saklanır. Bellekte açık kasa süresince kalır, kilit anında sıfırlanır. |
+| **A-04** | **Record & Manifest Anahtarları** | Root Key'den HKDF-SHA-256 ile amaç etiketlerine göre türetilen 256-bit anahtarlar. | Bellekte geçici türetilir; kayıt ve manifest şifreleme/çözme işlemlerinde kullanılır. |
+| **A-05** | **Kayıt Verileri (Credentials)** | Kullanıcı adları, parolalar, URL'ler, notlar, başlıklar, kategoriler, favoriler. | Yalnızca `RecordKey` ile şifrelenmiş envelope içinde diskte bulunur. Bellekte sadece aktif görüntüleme anında çözülür. |
+| **A-06** | **Kasa Manifesti & Bütünlük** | Kasa yapılandırması, kayıt kimlikleri (RecordId) ve revizyon eşlemeleri. | `ManifestKey` ile şifrelenmiş envelope içinde saklanır; kayıt silme ve yerine koyma (substitution) tespitini sağlar. |
+| **A-07** | **Açık Kasa Oturumu (Active Session)** | Bellekteki açık kasa oturumu, arama indeksleri, pano tamponu. | Kilitlenme (lock), sistem kilitlenmesi veya zaman aşımında deterministik olarak bellekten boşaltılır. |
 
 ---
 
 ## 3. Tehdit Aktörleri ve Güven Sınırları
 
 ### 3.1. Tehdit Aktörleri
-* **Yerel Dosya Hırsızı (Passive At-Rest Attacker):** Kasa veritabanını (`.db`) veya yedek dosyasını diskten, USB'den veya çalıntı cihazdan kopyalayan saldırgan.
-* **Kurcalayan Saldırgan (Tampering / Active File Attacker):** Veritabanı dosyasına doğrudan yazarak kayıtları silen, değiştiren, eski kayıtları araya sokan (substitution) veya dosya başlığını bozan aktör.
-* **Meraklı / Omuz Başı İzleyicisi (Shoulder Surfer / UI Snooper):** Kullanıcı ekran başından ayrıldığında veya kasa kilitliyken ekrana bakan kişi.
-* **Kötü Niyetli / Ele Geçirilmiş Uygulama (Context Spoofing / Malicious App):** Kendisini meşru bir uygulama (örn. Steam veya kurumsal uygulama) gibi göstererek auto-fill mekanizmasından parola çalmaya çalışan yerel yazılım.
-* **Pano İzleyicisi (Clipboard Monitor):** Windows panosuna kopyalanan parolaları yakalamaya çalışan üçüncü taraf yazılımlar.
-* **Aynı Kullanıcı Oturumundaki Kötü Amaçlı Yazılım (Same-User Malware):** Kullanıcıyla aynı yetkide çalışan ve bellek okuma veya pencere mesajları gönderebilen zararlı yazılım.
+1. **Durağan Dosya Hırsızı (Passive At-Rest Attacker):** Kasa veritabanını (`.db`), WAL dosyalarını veya yedek dosyasını diskten, çıkarılabilir medyadan veya yedekleme sunucusundan ele geçiren saldırgan.
+2. **Aktif Dosya Kurcalayıcısı (Tampering / Active File Attacker):** Veritabanı dosyasına doğrudan müdahale ederek kayıtları silen, değiştiren, eski kayıtları araya sokan (substitution), başlığı (header) manipüle eden veya KDF parametrelerini değiştirerek DoS yaratmaya çalışan aktör.
+3. **Ekran / UI İzleyicisi (Shoulder Surfer / Casual Observer):** Kullanıcı ekran başından ayrıldığında veya kasa kilitliyken ekrana bakan kişi.
+4. **Pano İzleyicisi (Clipboard Monitor):** Windows panosuna kopyalanan kimlik bilgilerini yakalamaya çalışan üçüncü taraf yazılımlar.
+5. **Aynı Kullanıcı Altında Çalışan Zararlı Yazılım (Same-User Malware):** Standart kullanıcı oturumu altında çalışan, bellek okuma veya pencere mesajları gönderebilen zararlı yazılımlar.
 
 ### 3.2. Güven Sınırları (Trust Boundaries)
-* **Kasa Depolama Sınırı (Storage Boundary):** Veritabanı ve disk yalnızca şifreli zarfları (encrypted envelopes) saklar. Düz metin (plaintext) disk sınırını geçemez.
-* **Oturum / Bellek Sınırı (Session & Process Boundary):** Uygulama kilitlendiğinde anahtar materyali ve çözülmüş tüm veriler bellekten temizlenir. UI katmanı güvenlik çekirdeğini atlayamaz.
-* **Hedef Uygulama Sınırı (Autofill Target Boundary):** Parola yöneticisi ile hedef uygulama arasındaki sınır. Hedef pencere (HWND), süreç kimliği (PID, başlangıç zamanı, dosya yolu) ve kontrol özellikleri doğrulanmadan veri aktarılmaz.
+* **Kasa Depolama Sınırı (Storage Boundary):** Veritabanı ve dosya sistemi yalnızca şifreli zarfları (encrypted envelope) saklar. Düz metin hiçbir zaman disk sınırını geçmez. SQLite WAL, SHM ve geçici dosyalar da şifreli kalır.
+* **Oturum ve Bellek Sınırı (Session & Memory Boundary):** Uygulama kilitlendiğinde anahtar materyali ve çözülmüş veriler bellekten temizlenir. UI katmanı güvenlik çekirdeğini atlayamaz; doğrudan DB veya anahtar API'lerini çağıramaz.
+* **Auto-fill Hedef Sınırı (Target Boundary):** Masaüstü hedef pencere (HWND), süreç (PID, bütünlük seviyesi, imza) ve focus bağlamı doğrulanmadan parola transferi yapılmaz.
 
 ---
 
-## 4. Tehdit Analizi, Beklenen Korumalar ve Sınırlar
+## 4. Tehdit Analizi, Hafifletmeler ve Sınırlar
 
-| Tehdit ID | Tehdit Açıklaması | Tasarım Koruması | Kabul Edilen Sınır / Kalan Risk |
+| Tehdit ID | Tehdit ve Saldırı Senaryosu | Tasarım Hafifletmesi (Mitigation) | Kabul Edilen Sınır / Kalan Risk |
 | --- | --- | --- | --- |
-| **T-01** | Çalınan veritabanı veya yedek dosyasının offline çözülmesi | Kasa kök anahtarı bağımsız üretilir ve Argon2id KEK ile AES-256-GCM kullanılarak sarılır. Kayıtlar AEAD ile şifrelenir. | Çok zayıf master password seçilirse offline sözlük/kaba kuvvet saldırısıyla kırılabilir. Kullanıcıya parola güçlüğü rehberliği verilir. |
-| **T-02** | Kayıt veya başlık (header) modifikasyonu | AES-256-GCM kimlik doğrulama etiketi (auth tag) ve AAD (VaultId, RecordId, sürüm) doğrulaması. Başarısızlık durumunda fail-closed. | Saldırgan dosyayı bozarak kullanılmaz hale getirebilir (hizmet dışı bırakma / availability saldırısı). |
-| **T-03** | Kayıtların yer değiştirilmesi veya eski kaydın geri konulması (Replay / Substitution) | Her kayıt için RecordId ve VaultId'ye bağlı AAD kontrolü; kasa manifesti ile kayıt kümesi bütünlüğü. | Yerel v1'de saldırgan tüm veritabanı dosyasını geçerli eski bir snapshot ile değiştirirse (rollback) yerel düzeyde bunu tespit etmek garanti değildir. |
-| **T-04** | Kilitli kasadan veya arka plan pencerelerinden veri sızması | Kasa kilitliyken başlık, kullanıcı adı, alan adı, son kullanılanlar ve kayıt sayısı sıfırlanır. Arama sonuçları ve form taslakları silinir. | İşletim sistemi veya grafik sürücüsünün ekran kartı belleğindeki geçici dokuları temizlediği garanti edilemez. |
-| **T-05** | Yanlış uygulamaya parola doldurma (Phishing / Context Spoofing) | Yalnızca kullanıcı eylemiyle tetikleme; HWND, PID, dosya yolu ve denetim deseni doğrulaması; doldurma anında son focus yeniden doğrulaması. | Hedef uygulamanın kendisi ele geçirilmişse (compromised), kendisine yazılan parolayı okuyabilir. Otomatik Enter/submit yapılmaz. |
-| **T-06** | Pano geçmişi ve bulut senkronizasyonu üzerinden parola sızıntısı | Windows `ExcludeClipboardContentFromMonitorProcessing` ve bulut dışlama bayrakları kullanılır; 20 saniye sonra zaman aşımı ve sahiplik kontrolüyle temizlenir. | Windows API bayraklarına uymayan agresif üçüncü taraf clipboard hook/logger yazılımlarına karşı tam koruma garantisi verilemez. |
-| **T-07** | Bellek analizi veya bellek dökümü (Crash/Memory Dump) | Anahtar buffer'ları `ZeroMemory` ile temizlenir; hassas nesneler deterministic dispose edilir. | Managed string kopyaları, .NET Garbage Collector hareketleri ve OS sayfalama (pagefile/hibernation) dosyaları tamamen kontrol edilemez. |
-| **T-08** | Düşmanca hazırlanmış import / yedek dosyası ile DoS saldırısı | KDF parametreleri (bellek, iterasyon, kanal) ve dosya boyutları için katı üst sınırlar konulur. Doğrulama bitmeden aktif kasa değiştirilmez. | Bozuk dosya içeriği içeri aktarılamaz, kullanıcıya güvenli genel hata dönülür. |
-| **T-09** | Aynı kullanıcı yetkisinde çalışan zararlı yazılım (Malware) | Oturum süreleri sınırlandırılır (otomatik kilitleme); arka planda açık kasa belleği minimize edilir. | Aynı kullanıcı hesabı altındaki bir süreç uygulamaya bellek enjeksiyonu yapabilir veya API'leri kanca atabilir; OS düzeyinde tam tecrit yalnızca ayrı oturum/hesap ile mümkündür. |
+| **T-01** | Çalınan veritabanı veya yedek dosyasının çevrimdışı kırılması (Offline Cracking) | Bağımsız 256-bit CSPRNG Root Key; Argon2id v1.3 ile 64 MiB bellek, 3 iterasyon, 4 paralellik ve 32 bayt salt ile KEK türetimi; AES-256-GCM ile sarmalama. | Zayıf master password seçilirse offline sözlük saldırısıyla kırılabilir. Kullanıcıya parola karmaşıklık kuralları ve güç göstergesi sunulur. |
+| **T-02** | Kayıt veya başlık (header) manipülasyonu (Tampering) | AES-256-GCM 128-bit kimlik doğrulama etiketi (auth tag) ve AAD doğrulaması. Başarısızlık durumunda katı fail-closed ilkesi. | Saldırgan dosyayı bozarak kasayı açılamaz hale getirebilir (DoS/availability saldırısı). |
+| **T-03** | Kayıt yer değiştirme veya başka kasadan kayıt aktarma (Substitution / Cross-Vault Injection) | Her kayıt için kanonik AAD yapısı: `VaultId` (16B) \|\| `RecordId` (16B) \|\| `EnvelopeVersion` (uint32) \|\| Purpose. Farklı kayıt veya kasa anahtarıyla çözülemez. | Kasanın tamamının silinmesi veya geçmiş geçerli bir yedekle değiştirilmesi (rollback) yerel düzeyde tespit edilemez. |
+| **T-04** | Düşmanca hazırlanmış dosya ile KDF DoS saldırısı (Hostile KDF Parameters) | Başlık veya import dosyasından okunan KDF parametreleri işlenmeden önce katı sınır kontrolünden geçer (Bellek: 16-512 MiB, İterasyon: 1-10, Paralellik: 1-16). Sınır dışı parametreler anında reddedilir. | Aşırı büyük dosya indirme/açma denemeleri dosya boyutu sınırı (ör. 50 MB) ile kesilir. |
+| **T-05** | AES-GCM Nonce Tekrarı (Nonce Reuse Catastrophe) | Her şifrelemede 96-bit kriptografik rastgele CSPRNG nonce üretilir. Aynı anahtar altında asla sabit veya sayaç tabanlı deterministik nonce kullanılmaz. | Doğum günü paradoksu (birthday bound): Tek anahtar altında $2^{32}$ şifrelemeye kadar çakışma ihtimali ihmal edilebilir düzeydedir ($< 2^{-32}$). Kök anahtar rotasyonu bu riski yönetir. |
+| **T-06** | Kilitli kasada bellek veya arayüzden veri sızması | Kasa kilitlendiğinde tüm hassas UI bileşenleri, modeller, arama dizinleri ve DTO'lar sıfırlanır. Anahtar buffer'ları `ZeroMemory` ile temizlenir. Devam eden decrypt/reveal operasyonları iptal edilir. | .NET Garbage Collector tarafından taşınan managed string kopyaları ve işletim sistemi pagefile/crash dump dosyaları %100 silinme garantisi veremez. |
+| **T-07** | Windows Pano geçmişi ve bulut senkronizasyonu üzerinden sızıntı | `ExcludeClipboardContentFromMonitorProcessing` ve bulut dışlama bayrakları kullanılır; 20 saniye sonra zaman aşımı ve sahiplik kontrolüyle temizlenir. | Kötü amaçlı, Windows API standartlarını hiçe sayan agresif klavye/pano dinleyicileri (hook/logger) engellenemez. |
+| **T-08** | Yanlış pencereye veya taklit uygulamaya parola doldurma (Context Spoofing) | Yalnızca kullanıcı onayıyla doldurma (otomatik doldurma/Enter yok). HWND, PID, dosya yolu ve focus son anda yeniden doğrulanır. | Hedef uygulamanın kendisi ele geçirilmişse, meşru olarak aldığı parolayı kötüye kullanabilir. |
+| **T-09** | Aynı kullanıcı yetkisinde çalışan zararlı yazılım (Same-User Malware) | Oturum süreleri sınırlanır (5 dk hareketsizlikte otomatik kilit); hassas açık metin formu diske yazılmaz; UI izolasyonu korunur. | Aynı kullanıcı hesabı altındaki zararlı süreçler bellek okuma/enjeksiyon yapabilir; OS düzeyinde tam tecrit ancak ayrı kullanıcı/sandbox ile mümkündür. |
 
 ---
 
-## 5. Değişmez Güvenlik İlkeleri (Non-Negotiables)
+## 5. Değişmez Güvenlik Sözleşmesi (Non-Negotiables)
 
-1. **Master password asla diske yazılmaz**, loglanmaz, telemetriye dahil edilmez ve görünür metin olarak saklanmaz.
-2. **AES-GCM için her şifreleme işleminde yeni bir CSPRNG nonce** (96-bit) üretilir. Aynı anahtar/nonce çifti asla yeniden kullanılmaz.
-3. **Fail-Closed İlkesi:** Herhangi bir auth tag, AAD veya header doğrulama hatasında veri asla çözülmüş olarak sunulmaz; ortak ve güvenli bir hata mesajı üretilir.
-4. **Log Güvenliği:** Yalnızca güvenli durum kodları ve olaylar loglanır; DTO dökümü, entity serializasyonu veya hassas istisna detayları loglara girmez.
-5. **Kullanıcı İradesi Dışında Doldurma Yok:** Auto-fill hiçbir koşulda kullanıcı tetiklemesi olmadan başlatılmaz; otomatik submit/enter işlemi uygulanmaz.
-
----
-
-## 6. Sürüm ve Güncelleme Planı
-* **v0 (M0.1 - Mevcut):** Başlangıç ürün hedefleri, sınırları ve temel tehdit haritası.
-* **v1 (M1.1 Hedefi):** Şifreleme formatı (VAULT_FORMAT.md), Argon2id parametre sınırları, anahtar sarma (key wrap) ve SQLite şema detayları ile güncellenecektir.
+1. **Plaintext Asla Diske Yazılmaz:** Master password, çözülmüş hesap alanları ve simetrik anahtarlar hiçbir zaman diske yazılmaz, SQLite unencrypted sütununda tutulmaz, loglanmaz veya geçici dosyalara bırakılmaz.
+2. **Kriptografik Anahtar Ayrımı (Key Separation):** KEK yalnızca Kök Anahtarı sarmak için kullanılır; doğrudan kayıt şifrelemez. Kayıtlar `RecordKey`, manifest ise `ManifestKey` ile şifrelenir. Anahtarlar birbirinin yerine kullanılamaz.
+3. **Nonce Benzersizliği:** Her AEAD işlemi CSPRNG ile üretilmiş yeni bir 96-bit nonce kullanır. Yeniden şifreleme, güncelleme ve geri yükleme durumlarında da yeni nonce zorunludur.
+4. **Katı Fail-Closed İlkesi:** Doğrulama, auth tag veya KDF parametre sınır hatası alındığında hiçbir veri sunulmaz. Hata mesajı saldırgana bilgi sızdırmaz ("Kasa açılamadı: kimlik doğrulama başarısız veya veri bozuk").
+5. **Log Whitelist Kuralı:** Loglar yalnızca güvenli durum kodları ve süreleri içerebilir. İstisna detaylarında veya log mesajlarında parola, kullanıcı adı veya anahtar dökümü kesinlikle yasaktır.
+6. **Kullanıcı Tetiklemeli Auto-fill:** Kullanıcı açıkça komut vermeden hiçbir forma otomatik veri basılmaz, otomatik `Enter` veya form gönderimi yapılmaz.

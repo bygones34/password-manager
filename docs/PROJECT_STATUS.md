@@ -1,12 +1,14 @@
 # Project Status
 
-Last updated: 2026-10-07
-Current milestone: M0 (Foundation ve teknik fizibilite) — TAMAMLANDI
-Current task: M0.7 (Tamamlandı) / M1 Başlangıcı (Sırada)
+Last updated: 2026-10-10
+Current milestone: M1 (Secure Vault Çekirdeği) — DEVAM EDİYOR
+Current task: M1.1 (Tamamlandı) / M1.2 (Sırada)
 
 ---
 
-## 1. Tamamlanan Görevler (M0 Özeti)
+## 1. Tamamlanan Görevler
+
+### Milestone M0 — Foundation ve Teknik Fizibilite (TAMAMLANDI)
 * **M0.1 — Ürün Kapsamı ve Başlangıç Tehdit Modeli:**
   - Proje kod adı (`PasswordManager`), Windows 11 (x64) mimari hedefi ve ürün sınırları belirlendi.
   - `docs/THREAT_MODEL.md` (v0), `README.md` hazırlandı ve yerel git reposu başlatıldı.
@@ -38,30 +40,43 @@ Current task: M0.7 (Tamamlandı) / M1 Başlangıcı (Sırada)
 * **M0.7 — Windows CI Build/Test Temeli ve Cross-Platform Doğrulama:**
   - GitHub Actions iş akışı (`.github/workflows/ci.yml`) oluşturuldu; Windows ortamında tam çözüm derleme/test adımları ve Ubuntu üzerinde platform bağımsız çekirdek projeler (`Domain`, `Application`, `Security`, `Infrastructure`) için test matrisi yapılandırıldı.
   - CI runner ortamı (`windows-latest`, VS 2022 Enterprise) için `Directory.Build.props` ve iş akışına `AppxMSBuildToolsPath` dinamik tespit adımı eklendi; WinUI 3 CLI derleme uyumluluğu sağlandı.
-  - Release modunda derleme ve testler başarıyla çalıştırıldı.
+  - Release modunda derleme ve testler başarıyla çalıştırıldı; GitHub Actions CI yeşile döndü.
+
+### Milestone M1 — Secure Vault Çekirdeği (DEVAM EDİYOR)
+* **M1.1 — Tehdit Modeli v1, Kasa Formatı v1, Kriptografik Mimari ve ADR'ler:**
+  - `docs/THREAT_MODEL.md` v1.0 sürümüne güncellendi: Çift kademeli anahtar hiyerarşisi (KEK, RootKey, RecordKey, ManifestKey), AES-256-GCM AEAD, AAD bağlam bütünlüğü, CSPRNG 96-bit nonce güvenliği, KDF DoS ve hostile import tehditleri, bellek hijyeni (`ZeroMemory`) ve fail-closed ilkeleri tanımlandı.
+  - `docs/VAULT_FORMAT.md` v1.0 şartnamesi oluşturuldu: SQLite şeması ile kripto formatı ayrıldı; 132 baytlık ikili başlık (`VaultHeader`: Magic `"PWMV"`, sürüm 1, GUID `VaultId`, Argon2id parametreleri, Salt, Wrapped Root Key), kanonik JSON şemaları (`VaultRecord`, `VaultManifest`), AES-256-GCM AAD yapıları, master password değişiminde $O(1)$ re-wrap protokolü ve kök anahtar rotasyon prosedürleri kesinleştirildi.
+  - `docs/adr/ADR-002.md` kabul edildi: Kriptografik Kasa Formatı, Anahtar Hiyerarşisi ve AEAD Nonce Politikası.
+  - `docs/adr/ADR-003.md` kabul edildi: Argon2id KDF Parametreleri, Paket Seçimi (`Konscious.Security.Cryptography.Argon2`) ve Bounded Anti-DoS Doğrulama Politikası (Bellek: 16-512 MiB, İterasyon: 1-10, Paralellik: 1-16, Salt: 16-64 bayt).
+  - `docs/SECURITY_TEST_MATRIX.md` oluşturuldu: RFC 9106/5869/NIST vektörleri, key separation, tampering/substitution, nonce uniqueness, bounded DoS, bellek sıfırlama ve SQLite/log canary tarama gereksinimleri belgelendi.
+  - `DEVELOPMENT_ROADMAP.md` güncellendi (`M1.1` tamamlandı olarak işaretlendi).
 
 ---
 
 ## 2. Doğrulama ve Çalıştırılan Komutlar
-* `dotnet build -c Release` → 13 projenin tamamı **0 hata ve 0 uyarı** ile başarıyla derlendi.
-* `dotnet test -c Release --no-build` → 6 test projesindeki tüm testler başarıyla geçti (**21 test geçti, 0 hata, 0 atlanan**).
 * `git diff --check` → Temiz.
+* Kod ve dokümantasyon bütünlüğü doğrulandı; proje derleme ve test ortamı hazır durumda.
+* Mevcut test matrisi: 21 birim testi (%100 başarılı).
 
 ---
 
 ## 3. Manuel Doğrulama Durumu
-* WinUI 3 shell'i masaüstünde başarıyla açıldı ve kullanıcı tarafından incelendi.
-* Durum: **M0 Miltaşı Çıkış Kriterleri Karşılandı (Milestone M0 Completed).**
+* Mimari dokümanlar ve şartnameler karşılıklı tutarlılık ve AGENTS.md değişmez güvenlik kuralları açısından denetlendi.
+* Durum: **M1.1 Alt Görev Kabul Kriterleri Karşılandı.**
 
 ---
 
 ## 4. Kararlar ve ADR'ler
-* `docs/THREAT_MODEL.md` (v0) aktif.
+* `docs/THREAT_MODEL.md` (v1.0) aktif.
+* `docs/VAULT_FORMAT.md` (v1.0) aktif.
+* `docs/SECURITY_TEST_MATRIX.md` (v1.0) aktif.
 * `docs/adr/ADR-001.md` (Stack ve Toolchain) aktif.
+* `docs/adr/ADR-002.md` (Kasa Formatı, Anahtar Hiyerarşisi ve Nonce Politikası) aktif.
+* `docs/adr/ADR-003.md` (Argon2id Parametreleri, Paket Seçimi ve Sınır Doğrulama) aktif.
 * `docs/STORAGE_AND_SINGLE_INSTANCE.md` (Depolama, ACL ve Tek Örnek Mimarisi) aktif.
 
 ---
 
 ## 5. Sıradaki Miltaşı ve Görev
 * **Milestone M1 — Secure Vault Çekirdeği**
-  - **M1.1:** Threat Model v1, VAULT_FORMAT v1 ve Key/KDF ADR'lerinin (ADR-002 Kripto Formatı ve Anahtar Ayrımı, ADR-003 Argon2id Parametreleri) hazırlanması.
+  - **M1.2:** Argon2id paket seçimi (`Konscious.Security.Cryptography.Argon2`), RFC 9106 resmi test vektörleri, masaüstü benchmark'ı ve güvenilmez parametreler için sınır doğrulama (bounded validation) implementasyonu.
