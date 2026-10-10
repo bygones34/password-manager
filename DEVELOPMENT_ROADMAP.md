@@ -213,7 +213,7 @@ Amaç: şifreleme formatı ve create/unlock/lock yaşam döngüsü.
 - [x] M1.3 CSPRNG, key wrap, HKDF separation, record/manifest AEAD implementasyonu.
 - [x] M1.4 Encrypted envelope şeması ve EF migration; schema version ile crypto format version ayrılır.
 - [x] M1.5 Create/unlock/lock, state machine, operation scope, key dispose ve cancellation.
-- [ ] M1.6 Başlangıç auto-lock/session-lock/suspend olayları; log whitelist.
+- [x] M1.6 Başlangıç auto-lock/session-lock/suspend olayları; log whitelist.
 - [ ] M1.7 Güvenlik testleri ve dosya canary taraması.
 
 Çıkış: doğru parola açar; yanlış parola ve ciphertext/tag/AAD/header değiştirme kapalı kalır; ciphertext record/vault değişimi reddedilir; aynı plaintext yeniden yazılınca yeni nonce oluşur; malformed input KDF öncesi reddedilir. Lock sırasında gecikmiş sonuçlar UI'ya ulaşmaz. UI güvenlik çekirdeğini atlayamaz.

@@ -162,4 +162,11 @@ public static class NativeMethods
     [DllImport("wtsapi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool WTSUnRegisterSessionNotification(IntPtr hWnd);
+
+    // --- Power Broadcast (Suspend / Resume) APIs ---
+
+    public const uint WM_POWERBROADCAST = 0x0218;
+    public const uint PBM_APMSUSPEND = 0x0004;
+    public const uint PBM_APMRESUMEAUTOMATIC = 0x0012;
+    public const uint PBM_APMRESUMESUSPEND = 0x0007;
 }

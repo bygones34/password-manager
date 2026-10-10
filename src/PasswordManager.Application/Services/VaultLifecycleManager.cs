@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using PasswordManager.Application.Abstractions;
+using PasswordManager.Application.Logging;
 using PasswordManager.Application.Models;
 using PasswordManager.Application.Session;
 using PasswordManager.Application.Validation;
@@ -20,6 +22,7 @@ public sealed class VaultLifecycleManager : IVaultLifecycleManager
     private readonly IVaultHeaderService _headerService;
     private readonly IAeadEnvelopeService _envelopeService;
     private readonly IKeyDerivationService _kdfService;
+    private readonly ISecureLogger _logger;
 
     private readonly SemaphoreSlim _stateLock = new(1, 1);
     private VaultState _currentState = VaultState.NoVault;
@@ -40,7 +43,8 @@ public sealed class VaultLifecycleManager : IVaultLifecycleManager
         IVaultStorageService storageService,
         IVaultHeaderService headerService,
         IAeadEnvelopeService envelopeService,
-        IKeyDerivationService kdfService)
+        IKeyDerivationService kdfService,
+        ISecureLogger? logger = null)
     {
         _storagePathProvider = storagePathProvider ?? throw new ArgumentNullException(nameof(storagePathProvider));
         _databaseInitializer = databaseInitializer ?? throw new ArgumentNullException(nameof(databaseInitializer));
@@ -48,6 +52,7 @@ public sealed class VaultLifecycleManager : IVaultLifecycleManager
         _headerService = headerService ?? throw new ArgumentNullException(nameof(headerService));
         _envelopeService = envelopeService ?? throw new ArgumentNullException(nameof(envelopeService));
         _kdfService = kdfService ?? throw new ArgumentNullException(nameof(kdfService));
+        _logger = logger ?? NullSecureLogger.Instance;
     }
 
     /// <inheritdoc />
@@ -114,6 +119,7 @@ public sealed class VaultLifecycleManager : IVaultLifecycleManager
             }
 
             SetState(VaultState.Unlocking);
+            var sw = Stopwatch.StartNew();
 
             var kdfParams = parameters ?? KdfParameters.Default;
             KdfParametersValidator.Validate(kdfParams);
@@ -159,10 +165,13 @@ public sealed class VaultLifecycleManager : IVaultLifecycleManager
                 _currentGeneration++;
                 _currentSession = new VaultSession(vaultId, _currentGeneration, rootKey, recordKey, manifestKey);
                 SetState(VaultState.Unlocked);
+
+                _logger.LogEvent(new SecureLogEvent("VAULT_CREATED", true, sw.ElapsedMilliseconds));
             }
             catch
             {
                 SetState(VaultState.Locked);
+                _logger.LogEvent(new SecureLogEvent("VAULT_CREATED", false, sw.ElapsedMilliseconds, "IO_ERROR"));
                 throw;
             }
             finally
@@ -203,6 +212,7 @@ public sealed class VaultLifecycleManager : IVaultLifecycleManager
             }
 
             SetState(VaultState.Unlocking);
+            var sw = Stopwatch.StartNew();
 
             byte[]? passwordBytes = null;
             byte[]? kek = null;
@@ -240,10 +250,19 @@ public sealed class VaultLifecycleManager : IVaultLifecycleManager
                 _currentGeneration++;
                 _currentSession = new VaultSession(headerData.VaultId, _currentGeneration, rootKey, recordKey, manifestKey);
                 SetState(VaultState.Unlocked);
+
+                _logger.LogEvent(new SecureLogEvent("VAULT_UNLOCKED", true, sw.ElapsedMilliseconds));
+            }
+            catch (Exceptions.CryptoAuthenticationException)
+            {
+                SetState(VaultState.Locked);
+                _logger.LogEvent(new SecureLogEvent("UNLOCK_FAILED", false, sw.ElapsedMilliseconds, "AUTH_FAILED"));
+                throw;
             }
             catch
             {
                 SetState(VaultState.Locked);
+                _logger.LogEvent(new SecureLogEvent("UNLOCK_FAILED", false, sw.ElapsedMilliseconds, "VALIDATION_FAILED"));
                 throw;
             }
             finally
@@ -283,6 +302,7 @@ public sealed class VaultLifecycleManager : IVaultLifecycleManager
             }
 
             SetState(VaultState.Locked);
+            _logger.LogEvent(new SecureLogEvent("VAULT_LOCKED", true));
         }
         finally
         {

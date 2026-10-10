@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-10
 Current milestone: M1 (Secure Vault Çekirdeği) — DEVAM EDİYOR
-Current task: M1.5 (Tamamlandı) / M1.6 (Sırada)
+Current task: M1.6 (Tamamlandı) / M1.7 (Sırada)
 
 ---
 
@@ -99,11 +99,31 @@ Current task: M1.5 (Tamamlandı) / M1.6 (Sırada)
     - `VaultLifecycleManagerTests`: SQLite veritabanı ve gerçek güvenlik servisleriyle uçtan uca döngü test edildi (`NoVault` → `Create` → `Unlocked` → `Lock` → `Locked` → `Unlock` → `Unlocked`); eşzamanlı unlock engellemesi, yanlış parolada ve bozuk manifestte fail-closed kilit kalışı, lock anında arkaplan görevlerinin anında iptali ve bellek sıfırlaması kanıtlandı.
   - `DEVELOPMENT_ROADMAP.md` güncellendi (`M1.5` tamamlandı olarak işaretlendi).
 
+* **M1.6 — Başlangıç Auto-Lock, Windows WTS / Suspend Entegrasyonu ve Log Whitelist Mekanizması:**
+  - `Application` katmanında `ISessionLockListener` ve `IAutoLockCoordinator` portları ile `AutoLockCoordinator` servisi geliştirildi:
+    - 5 dakika varsayılan kullanıcı hareketsizliği (`InactivityTimeout = 5 min`) ve test edilebilir `TimeProvider` tabanlı zamanlayıcı kuruldu.
+    - `RecordUserActivity()` ile klavye/fare/navigasyon etkileşimlerinde zamanlayıcının yenilenmesi sağlandı.
+    - Kasa açıldığında (`Unlocked`) zamanlayıcı otomatik kurulur, kilitlendiğinde (`Locked`) durur.
+    - Windows oturum kilit (`WorkstationLocked`), oturum kapatma (`SessionLogoff`), uzak masaüstü bağlantı kesilmesi (`RemoteDisconnect`) ve sistem uyku/askıya alma (`SystemSuspend`) olaylarında kasa anında kilitlenir; sistem uykudan uyandığında kasa kilitli kalır.
+  - `Platform.Windows` katmanında `WindowsSessionLockListener` geliştirildi:
+    - `SessionLockWatcher` ile Win32 WTS oturum bildirimleri (`WM_WTSSESSION_CHANGE`) ve `NativeMethods.WM_POWERBROADCAST` güç mesajları (`PBM_APMSUSPEND = 0x0004`) yakalanarak `ISessionLockListener` olaylarına haritalandı.
+  - `Application` katmanında katı Whitelist Güvenlik Günlüğü (`ISecureLogger`) mimarisi kuruldu:
+    - `SecureLogEvent` modeli oluşturuldu: Serbest metin (free-form message) alanları, DTO dump, kullanıcı girdisi ve istisna yığını yasaklandı. Yalnızca `event_code`, `duration_ms`, `success`, `error_code`, `timestamp` whitelist alanlarına izin verildi.
+    - `SecureLogSanitizer` ile onaylı kod listesi ve `^[A-Z0-9_]{3,64}$` regex doğrulaması uygulandı; yetkisiz alanlar güvenli `SANITIZED_EVENT` ve `SANITIZED_ERROR` değerleriyle maskelendi.
+    - `SecureMemoryAuditLogger` ve NDJSON formatında yapılandırılmış akış yazan `SecureJsonStreamLogger` geliştirildi.
+    - `VaultLifecycleManager` servisine `ISecureLogger` enjekte edildi; `VAULT_CREATED`, `VAULT_UNLOCKED`, `UNLOCK_FAILED` (`AUTH_FAILED`), `VAULT_LOCKED` olayları süre ve başarı bilgisiyle whitelist üzerinden loglandı.
+  - Test projelerine toplam 21 yeni test eklendi:
+    - `AutoLockCoordinatorTests`: `ManualTimeProvider` ile 5 dk hareketsizlikte kilitleme, kullanıcı eyleminde sürenin ötelenmesi, devre dışı bırakma, anında OS kilit ve suspend kilit davranışları test edildi.
+    - `LogSanitizationTests` (SEC-G02): Kasa oluşturma, açma, hatalı parola denemesi ve kilitleme akışları boyunca üretilen NDJSON logları taranarak sentetik parolaların sıfır sızıntısı (zero plaintext in logs) ve katı JSON whitelist şeması doğrulandı.
+    - `WindowsSessionLockListenerTests`: WTS ve PowerBroadcast Win32 mesaj eşlemeleri test edildi.
+  - `DEVELOPMENT_ROADMAP.md` güncellendi (`M1.6` tamamlandı olarak işaretlendi).
+
 ---
 
 ## 2. Doğrulama ve Çalıştırılan Komutlar
-* `dotnet test tests/PasswordManager.Application.Tests/PasswordManager.Application.Tests.csproj -c Release` → **23 test geçti, 0 hata, 0 atlanan**.
-* `dotnet test PasswordManager.slnx -c Release` → Çözüm genelindeki 6 test projesinde **96 test geçti, 0 hata, 0 atlanan (%100 başarı)**.
+* `dotnet test tests/PasswordManager.Application.Tests/PasswordManager.Application.Tests.csproj -c Release` → **38 test geçti, 0 hata, 0 atlanan**.
+* `dotnet test tests/PasswordManager.Windows.Tests/PasswordManager.Windows.Tests.csproj -c Release` → **22 test geçti, 0 hata, 0 atlanan**.
+* `dotnet test PasswordManager.slnx -c Release` → Çözüm genelindeki 6 test projesinde **117 test geçti, 0 hata, 0 atlanan (%100 başarı)**.
 * `git diff --check` → Temiz.
 
 ---
@@ -111,7 +131,8 @@ Current task: M1.5 (Tamamlandı) / M1.6 (Sırada)
 ## 3. Manuel Doğrulama Durumu
 * SEC-F01: `VaultSession.Dispose()` ve `LockVaultAsync()` çağrıldığında `RootKey`, `RecordKey` ve `ManifestKey` dizilerinin bellekte tüm baytlarının `0x00` olduğu doğrulandı.
 * SEC-F02: Kasa kilitlendiğinde bekleyen asenkron isteklerin `OperationScope.CancellationToken` ile anında iptal edildiği ve sonraki jenerasyona veri teslimatının engellendiği doğrulandı.
-* Durum: **M1.5 Alt Görev Kabul Kriterleri Karşılandı.**
+* SEC-G02: Log çıktılarında bayt seviyesinde sentetik master password ve hatalı deneme canary taraması yapıldı; log akışında sıfır plaintext ve yalnızca whitelist alanların bulunduğu kanıtlandı.
+* Durum: **M1.6 Alt Görev Kabul Kriterleri Karşılandı.**
 
 ---
 
@@ -128,4 +149,4 @@ Current task: M1.5 (Tamamlandı) / M1.6 (Sırada)
 
 ## 5. Sıradaki Miltaşı ve Görev
 * **Milestone M1 — Secure Vault Çekirdeği**
-  - **M1.6:** Başlangıç auto-lock, Windows WTS session-lock / suspend olayları entegrasyonu ve log whitelist mekanizması.
+  - **M1.7:** Kalan güvenlik testleri, dosya/bellek canary taraması ve M1 Milestone çıkış kapısı doğrulaması.
