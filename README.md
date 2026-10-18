@@ -1,52 +1,52 @@
-# PasswordManager (Windows 11)
+﻿# PasswordManager (Windows 11)
 
-Windows 11 için modern, yerel öncelikli (local-first) ve güvenli masaüstü parola yöneticisi.
+A modern, local-first, and secure desktop password manager designed for Windows 11.
 
-> **Durum:** Geliştirme aşamasında (Milestone M0 — Foundation ve Teknik Fizibilite)  
-> **Kod Adı:** `PasswordManager`  
-> **Hedef Platform:** Windows 11 (x64)
-
----
-
-## Proje Hedefi
-
-Windows 11 üzerinde Fluent Design standartlarına uygun bir ana arayüz, sistem bildirim alanında (System Tray) çalışan hızlı erişim mini kasası ve kullanıcı onaylı güvenli otomatik doldurma (Auto-fill) sağlayan bir parola yönetim çözümüdür.
-
-### Temel Özellikler (v1 Kapsamı)
-- **Yerel Öncelikli (Local-First):** Tüm veriler yerel SQLite veritabanında şifreli olarak saklanır. İlk sürüm tamamen çevrimdışı (offline) çalışır.
-- **Kriptografik Güvenlik:** AES-256-GCM authenticated encryption, Argon2id anahtar türetimi (KDF), HKDF anahtar ayrımı ve her şifrelemede CSPRNG nonce kullanımı.
-- **Modern Kullanıcı Deneyimi:** WinUI 3 + Windows App SDK tabanlı ana pencere, açık/koyu tema, erişilebilirlik ve klavye dostu gezinme.
-- **Sistem Bildirim Alanı (System Tray):** Görev çubuğundan tek tıklamayla hızlı arama, kopyalama ve kasa durum kontrolü.
-- **Doğrulanmış Auto-fill:** Hedef pencere (HWND), süreç (PID/path) ve denetim kimliğini doğrulayan, kullanıcı tarafından başlatılan güvenli doldurma (otomatik Enter/submit yoktur).
-- **Veri Dayanıklılığı:** Atomik yedekleme (consistent snapshot) ve taşınabilir güvenli geri yükleme.
+> **Status:** Active Development (Milestone M1 completed — Moving to Milestone M2)
+> **Code Name:** `PasswordManager`
+> **Target Platform:** Windows 11 (x64), .NET 10
 
 ---
 
-## Mimari ve Katmanlar
+## Project Goal
 
-Çözüm temiz mimari (Clean Architecture) ve port-adapter prensiplerine göre yapılandırılmıştır:
+A password management solution providing a modern user interface compliant with Fluent Design standards on Windows 11, a quick-access mini-vault running in the System Tray, and user-initiated, verified autofill.
+
+### Core Features (v1 Scope)
+- **Local-First:** All data is encrypted and stored locally in a SQLite database. The initial release operates entirely offline.
+- **Cryptographic Security:** AES-256-GCM authenticated encryption, Argon2id key derivation (KDF), HKDF key separation, and CSPRNG nonce generation for every encryption.
+- **Modern User Experience:** WinUI 3 + Windows App SDK main window, light/dark theme support, accessibility compliance, and keyboard-first navigation.
+- **System Tray Mini-Vault:** Fast search, copy, and vault state controls directly from the Windows taskbar.
+- **Verified Autofill:** User-initiated, target-bound autofill verifying window handle (HWND), process (PID/path), and control identity before writing (no automatic Enter/submit).
+- **Data Durability:** Atomic SQLite WAL backups (consistent snapshot) and portable verified restore.
+
+---
+
+## Architecture & Layers
+
+The solution is structured strictly adhering to Clean Architecture and Ports-and-Adapters principles:
 
 ```text
 src/
-  PasswordManager.Domain/              # Çekirdek iş kuralları ve modeller (bağımsız)
-  PasswordManager.Application/         # Kullanım senaryoları ve port tanımları
-  PasswordManager.Security/            # Kriptografi, Argon2id, AES-GCM port uygulamaları
-  PasswordManager.Infrastructure/      # SQLite depolama, EF Core, dosya işlemleri
-  PasswordManager.Platform.Windows/    # Windows OS servisleri (tray, session, clipboard)
-  PasswordManager.Autofill.Windows/    # UI Automation hedef denetimi ve doldurma adaptörleri
-  PasswordManager.Desktop/             # WinUI 3 composition root ve arayüz
+  PasswordManager.Domain/              # Core business entities, enums, rules (independent)
+  PasswordManager.Application/         # Use cases, ports, session lifecycle, operation scopes
+  PasswordManager.Security/            # Cryptography, Argon2id, AES-GCM, HKDF implementations
+  PasswordManager.Infrastructure/      # Encrypted envelope SQLite storage, EF Core, migrations
+  PasswordManager.Platform.Windows/    # Windows OS services (tray, WTS session lock, ACLs)
+  PasswordManager.Autofill.Windows/    # UI Automation target validation and fill adapters
+  PasswordManager.Desktop/             # WinUI 3 composition root, MVVM, and UI views
 ```
 
 ---
 
-## Geliştirme ve Çalışma Prensipleri
+## Development Principles & Security Policy
 
-1. **Katı Güvenlik:** Master password diske yazılmaz veya loglanmaz. Kasa kilitliyken arayüzde hiçbir hesap metadata'sı gösterilmez.
-2. **Küçük ve Doğrulanabilir Adımlar:** Geliştirmeler [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md) üzerindeki miltaşları ve kabul kriterleri izlenerek yürütülür.
-3. **Çalışma Kuralları:** Tüm süreç [AGENTS.md](AGENTS.md) kurallarına ve güvenlik sözleşmesine tabidir.
-4. **Tehdit Modeli:** Başlangıç güvenlik sınırları ve tehdit analizi [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) içinde belgelenmiştir.
+1. **Strict Zero-Knowledge:** Master passwords are never written to disk or logged. When the vault is locked, zero sensitive metadata or decrypted credentials exist in memory or UI.
+2. **Incremental & Verified Steps:** Development follows the milestone gates and acceptance criteria defined in [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md).
+3. **Execution Rules:** All development follows the non-negotiable security rules in [AGENTS.md](AGENTS.md).
+4. **Threat Model:** Security boundaries and threat analysis are documented in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
 ---
 
-## Lisans ve Notlar
-Bu repo henüz kamuya açık dağıtım veya gerçek parola kullanımı için hazır değildir. Testler sentetik verilerle yürütülmektedir.
+## License & Notice
+This repository is under active development and not yet intended for production credentials. All test suites operate strictly with synthetic test data.

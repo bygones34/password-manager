@@ -1,107 +1,107 @@
-# Project Instructions — PasswordManager
+﻿# Project Instructions — PasswordManager
 
-Bu dosya repository kökünde tutulur. Tüm alt klasörlerdeki Codex çalışmalarına uygulanır. Kullanıcının mevcut oturumdaki açık talimatları önceliklidir. `DEVELOPMENT_ROADMAP.md` ürün planını, bu dosya çalışma kurallarını belirler.
+This file is maintained at the root of the repository. It applies to all engineering work across all subdirectories. Explicit user instructions in the active session take precedence. `DEVELOPMENT_ROADMAP.md` defines the product plan, and this file defines operational rules and security contracts.
 
-## 1. Proje amacı
+## 1. Project Goal
 
-Windows 11 için modern, local-first parola yöneticisi geliştiriyoruz. Hedef WinUI 3 ana arayüz, system tray mini vault ve kanıtlanmış uygulama desteğiyle kullanıcı tetiklemeli auto-fill. İlk sürüm local SQLite encrypted vault kullanır. Cloud sync, browser extension, Windows Hello ve ürünleşme roadmap'teki ayrı kapılardan sonra gelir.
+We are developing a modern, local-first password manager for Windows 11. Key targets include a WinUI 3 main interface, a system tray mini-vault, and user-triggered autofill for proven applications. The initial release uses a local SQLite encrypted vault. Cloud sync, browser extension integration, Windows Hello, and packaging follow across subsequent roadmap milestones.
 
-Kod adı `PasswordManager`; kesin ürün adı verilmeden isim icat etme. Kullanıcı belgeleri Türkçe, kod identifier'ları İngilizce olsun. UI metinlerini resource'larda tut; ilk UI dili roadmap'e göre İngilizce olabilir.
+The project code name is `PasswordManager`; do not invent product names without explicit instruction. Project documentation, markdown files, and code identifiers must be in English. Keep UI strings in localized resources.
 
-## 2. Her oturumun başlangıcı
+## 2. Start of Each Session
 
-1. Bu dosyayı, roadmap'i, varsa `docs/PROJECT_STATUS.md`, ilgili ADR ve test matrisini oku.
-2. `git status` ve mevcut değişiklikleri incele; kullanıcı değişikliklerini koru.
-3. Aktif alt görevi ve kabul kriterlerini belirle. Kullanıcı görev verdiyse onu izle; genel “devam et” talimatında status'taki en küçük açık alt görevi seç.
-4. Platform/SDK/test araçlarının kullanılabilirliğini gerçek ortamdan doğrula. Windows doğrulaması Linux'ta tamamlanmış sayılamaz.
-5. Kısa bir amaç ve doğrulama planı bildir; görevi uygulamaya taşı.
+1. Read this file, the roadmap, `docs/PROJECT_STATUS.md` (if present), relevant ADRs, and the security test matrix.
+2. Inspect `git status` and existing working tree changes; preserve user changes.
+3. Determine the active subtask and acceptance criteria. Follow explicit user instructions; on general "continue" instructions, select the smallest open subtask from the status document.
+4. Verify availability of platform, SDK, and test toolchains in the actual environment. Windows verification cannot be considered complete on Linux.
+5. Report a brief objective and verification plan before proceeding with implementation.
 
-Var olmayan geçmiş test, commit, onay veya sürüm uydurma. Dosyalarda TBD olan kritik güvenlik kararını kod içinde sessizce seçme; ilgili ADR'yi somutlaştır. Güvenli ve geri alınabilir rutin uygulama kararlarında gereksiz onay döngüsü oluşturma.
+Do not fabricate non-existent tests, commits, approvals, or releases. Do not silently resolve critical security decisions marked as TBD in code; document them in an ADR. Avoid unnecessary approval cycles for safe, reversible, routine implementation decisions.
 
-## 3. Kapsam ve çalışma ritmi
+## 3. Scope & Cadence
 
-- Bir alt görevi küçük, review edilebilir değişikliklerle tamamla. Bir milestone'un tamamını tek büyük patch'e dönüştürme.
-- Aktif kapsam dışındaki crypto/auto-fill/sync/Hello kodunu önceden ekleme.
-- Roadmap'teki bağımlılıklar ve exit gate'ler geçilmeden gerçek parola kullanımına veya kamuya dağıtıma geçme.
-- Kullanıcı görevi implementasyon yetkisi verir; commit/push/merge/yayın için mevcut oturum yetkisini kontrol et. Yetki varsa tekrar sorma; yoksa değişiklikleri ve kanıtı review edilebilir halde bırak.
-- Reset/clean/force-push, kullanıcı verisini silme, destructive migration ve mevcut güvenlik garantisini düşürme yapma. Kullanıcı bunları açıkça isterse önce etkiyi somutlaştır.
-- Standart kullanıcı yetkisiyle çalış; auto-fill'i çözmek için administrator/UIAccess/UAC bypass ekleme.
-- Yeni dependency eklerken resmî doküman, lisans, bakım, güvenlik ve sürüm uyumluluğunu doğrula. Sürümleri merkezi ve sabit yönet.
+- Complete each subtask in small, reviewable increments. Do not convert an entire milestone into a single massive patch.
+- Do not introduce premature crypto, autofill, sync, or Hello code outside the active scope.
+- Do not deploy to production credentials or public distribution before dependencies and exit gates on the roadmap are satisfied.
+- The user grants implementation authority; verify active session permissions before commit/push/merge/publish. If authorized, proceed; otherwise leave changes and test evidence clean and reviewable.
+- Never perform reset, clean, force-push, user data deletion, destructive migrations, or degradation of existing security guarantees without explicit user confirmation after explaining the full impact.
+- Operate under standard user privileges; never introduce administrator requirements, UIAccess, or UAC bypasses to solve autofill.
+- When adding new dependencies, verify official documentation, licensing, maintenance status, security track record, and version compatibility. Manage package versions centrally and pinned.
 
-## 4. Mimari kuralları
+## 4. Architectural Rules
 
-- Domain bağımsız; Application use case ve portları tanımlar.
-- Security UI/EF/Win32 bilmez; onaylı standart primitive'lerle kriptografi portlarını uygular.
-- Infrastructure yalnızca encrypted envelope ve manifest saklar. Plaintext credential EF entity'si veya FTS index oluşturma.
-- Platform.Windows native OS servislerini; Autofill.Windows hedef doğrulama ve adapter'ları kapsar.
-- Autofill anahtar, DB veya sınırsız kasa okuma yetkisi almaz. Tek kullanıcı eylemi için kısa ömürlü, oturuma bağlı credential erişimi alır.
-- Desktop composition root'tur. UI güvenlik kontrolünü atlayarak DB/key API çağırmaz.
-- Gelecekte NativeHost ayrı kasayı açmaz; masaüstündeki aktif oturuma dar kapsamlı IPC yapar.
-- Gereksiz generic framework, her sınıfa interface, microservice, local HTTP API veya zorunlu CQRS ekleme.
+- Domain is independent; Application defines use cases, models, and ports.
+- Security knows nothing of UI, EF Core, or Win32; it implements cryptographic ports using standard, approved primitives.
+- Infrastructure stores only encrypted envelopes and manifests. Never create plaintext credential EF entities or FTS indexes.
+- Platform.Windows encapsulates native OS services; Autofill.Windows encapsulates target verification and UI Automation adapters.
+- Autofill never receives database keys, direct DB access, or unbounded vault read rights. It receives only short-lived, session-bound credential access for single user-triggered fill actions.
+- Desktop is the composition root. The UI never bypasses security controls to call database or key derivation APIs directly.
+- In future phases, NativeHost will not open a separate vault; it will communicate with the active desktop session over narrow IPC.
+- Avoid unnecessary generic frameworks, interfaces for every single class, microservices, local HTTP APIs, or mandatory CQRS/MediatR patterns.
 
-## 5. Değişmez güvenlik kuralları
+## 5. Non-Negotiable Security Rules
 
-1. Gerçek password, master password, kullanıcı hesabı, token, vault DB, backup, signing key veya certificate secret'ını source/test fixture/issue/log/commit içine koyma. Test verisi sentetik ve açıkça test-only olsun.
-2. Master password kaydetme; input'u sessizce trim/normalize etme. Encoding politikası `VAULT_FORMAT.md` ile aynıdır.
-3. KEK/root key/record key ayrımını koru. Algoritma, HKDF label, AAD, serializer, nonce, tag ve KDF parametresi değişikliği format/ADR/test güncellemesi gerektirir.
-4. AES-GCM her encryption'da yeni CSPRNG nonce kullanır. Aynı key/nonce tekrarını, retry/restore/edit dahil önle. Sabit nonce, deterministic IV veya `Random` kullanma.
-5. Bilinmeyen format veya authentication failure'da fail closed. Ciphertext'i hasarlı diye plaintext fallback ile açma.
-6. Header/import KDF ve boyut değerleri sınır kontrolünden sonra işlenir. KDF'yi sınırsız attacker-controlled değerle çalıştırma.
-7. Kilit durumunda hesap metadata'sı, count, search sonucu, form taslağı ve secret gösterme. Tüm UI/tray yüzeyleri aynı session generation'a bağlıdır.
-8. Lock pending decrypt/reveal/clipboard/fill işlerini iptal eder; geç gelen sonuçlar uygulanamaz. Session lock/suspend sonrası kasa locked kalır.
-9. Anahtar ve kontrollü byte buffer'ları deterministic dispose/zero yap. Managed string veya process/OS belleğinin tamamını temizlediğini iddia etme.
-10. Log alanları whitelist olsun. DTO/entity dump, EF sensitive-data logging veya password içeren exception context kullanma. Production debug dump/telemetry'yi kendiliğinden etkinleştirme.
-11. Clipboard history/sync dışlama ve conditional cleanup kullan. Kullanıcının sonraki clipboard içeriğini silme. Clipboard logger koruması iddia etme.
-12. Parola reveal süreli; lock/focus loss'ta masked. Accessibility/automation metadata'sına password yayınlama.
-13. Backup/restore atomik ve doğrulanmış olsun; SQLite WAL varken sadece ana DB dosyasını kopyalama. Restore doğrulanana kadar aktif kasa korunur.
-14. Local retry throttling offline cracking savunması değildir; weak master password riskini gizleme.
-15. Önceki geçerli snapshot rollback'i AEAD tek başına önlemez. Eksik korumayı “tamper-proof” diye sunma.
+1. Never place real passwords, master passwords, user accounts, tokens, vault DBs, backups, signing keys, or certificate secrets in source code, test fixtures, issues, logs, or commits. Test data must be synthetic and explicitly test-only.
+2. Never store master passwords; never silently trim or normalize password input. The encoding policy matches `VAULT_FORMAT.md`.
+3. Preserve key separation across KEK, root key, record key, and manifest key. Any change to algorithms, HKDF labels, AAD, serializers, nonces, tags, or KDF parameters requires format, ADR, and test updates.
+4. AES-GCM requires a fresh CSPRNG nonce for every encryption. Prevent key/nonce reuse across retries, restores, and edits. Never use fixed nonces, deterministic IVs, or `System.Random`.
+5. Fail closed on unknown formats, authentication tag mismatches, or corrupted data. Never fallback to plaintext recovery for corrupted ciphertext.
+6. Header and import KDF/size parameters must undergo strict bounding checks before execution. Never run KDF on unbounded attacker-controlled parameters.
+7. In the locked state, hide account metadata, counts, search results, form drafts, and secrets. All UI and tray surfaces bind to the same session generation.
+8. Locking cancels all pending decrypt, reveal, clipboard, and fill tasks; delayed results cannot be delivered to UI. Vault remains locked following OS session lock or power suspend.
+9. Deterministically wipe controlled key and byte buffers (`CryptographicOperations.ZeroMemory`). Do not claim to clear immutable managed strings or entire OS memory pages.
+10. Logging must strictly follow an allowed-fields whitelist. Never dump entities/DTOs, enable EF sensitive data logging, or include secrets in exception context. Do not enable production debug dumps or telemetry silently.
+11. Exclude sensitive data from Windows clipboard history/cloud sync and perform conditional cleanup. Never clear clipboard contents if the user has since copied something else. Do not claim clipboard logger immunity.
+12. Password reveal is time-limited; mask immediately on lock or focus loss. Never publish passwords to accessibility or automation trees.
+13. Backup and restore must be atomic and verified; never copy only the primary SQLite file while a WAL file exists. The active vault is preserved until restore is verified.
+14. Local retry throttling is not defense against offline brute-force cracking; never disguise weak master password risks.
+15. AEAD alone does not prevent rollback to an earlier valid snapshot. Never misrepresent incomplete protections as "tamper-proof".
 
-Bu kurallar için test gerektiğinde roadmap'in güvenlik test matrisini kullan. Güvenlik işlevini yalnızca compile olduğu için tamamlandı sayma.
+Use the roadmap security test matrix when testing these rules. Do not consider a security feature complete simply because it compiles.
 
-## 6. Auto-fill kuralları
+## 6. Autofill Rules
 
-- Kullanıcı credential ve fill eylemini seçmeden secret gönderme; otomatik submit/Enter yoktur.
-- Tray açılmadan önceki hedefi yakala; unlock/focus dönüşünden sonra tekrar doğrula.
-- Process adı veya window title tek başına güven kimliği değildir. HWND/PID/start identity/path/integrity ve beklenen control/context kontrol edilir.
-- Her password write öncesi hedefi yeniden doğrula. Focus değişimi, PID reuse, yeni dialog, lock, timeout veya cancellation durumunda iptal et.
-- UIA provider'ının password alanını dolduracağını varsayma; capability ve gerçek uygulama testleri gerekir. Hedefin mevcut password'ünü okumaya çalışma.
-- İlk pilotta SendInput fallback yoktur; unsupported state ve manuel copy sun.
-- OS sign-in/UAC/secure desktop/elevated hedefler kapsam dışıdır.
-- Desteklenen uygulama ve sürümleri `AUTOFILL_COMPATIBILITY.md` ile kanıtla. Steam/Discord gibi adları test olmadan destek listesine ekleme.
-- Browser için exact origin/frame ve navigation-bound request kontrolü gerekir; desktop UIA browser entegrasyonunun yerine geçmez.
-- Native Messaging/allowed_origins veya pairing'in aynı kullanıcı malware'ine karşı mutlak güven sağladığını iddia etme. Protocol/IPC threat review yapılmadan browser özelliğini production'a açma.
+- Never dispatch secrets without explicit user selection and fill trigger; automatic submit or Enter is forbidden.
+- Capture the foreground target descriptor before opening the tray; re-verify after unlock and focus return.
+- Process name or window title alone is not a sufficient trust identity. Check HWND, PID, process start identity, executable path, integrity level, and expected control context.
+- Re-verify target identity immediately prior to writing password. Abort on focus changes, PID reuse, unexpected dialogs, lock, timeout, or cancellation.
+- Do not assume UI Automation providers support writing password fields; verify capabilities and real application behavior. Never attempt to read existing target passwords.
+- The initial pilot offers no blind SendInput fallback; offer clear unsupported status and manual copy fallback.
+- OS sign-in, UAC, secure desktop, and elevated processes are strictly out of scope.
+- Prove supported applications and versions in `AUTOFILL_COMPATIBILITY.md`. Never list applications like Steam or Discord without verified empirical test evidence.
+- Browser autofill requires exact origin, frame, and navigation-bound request validation; desktop UIA does not substitute for browser extension integration.
+- Native Messaging and allowed_origins do not grant absolute immunity against co-located same-user malware. Never expose browser features to production without an IPC protocol threat review.
 
-## 7. Windows Hello ve recovery
+## 7. Windows Hello & Recovery
 
-Hello consent sonucu ile cryptographically gated key access aynı değildir. DPAPI CurrentUser tek başına her decrypt için Hello zorunluluğu sağlamaz. Kullanılan mekanizma ve sınırları ADR'de belirt; donanım koruması kanıtlanmadan vaat etme.
+Hello consent and cryptographically gated key access are distinct mechanisms. DPAPI `CurrentUser` alone does not enforce Hello authorization for every decryption. Specify mechanisms and limitations in an ADR; do not promise hardware-backed security without verified proof.
 
-Master password yolu taşınabilir kalır. Cihaz özel Hello wrapper'ını backup ile başka cihaza aktarma. Recovery için plaintext master password saklama veya uygulama sahibine kasa açan backdoor ekleme. Unutulan master password, backup var diye kendiliğinden kurtarılmaz.
+The master password pathway remains portable. Never migrate machine-specific Hello wrappers to other devices via backup. Never retain plaintext master passwords or backdoor master keys for recovery. An forgotten master password cannot be recovered simply because a backup exists.
 
-## 8. Doğrulama ve completion
+## 8. Verification & Completion
 
-İlgili kapsam için gerçek build/test komutlarını çalıştır. Solution/Windows toolchain'e göre komutlar README'de kesinleştirilir; sırf genel `dotnet test` çıktı verdi diye WinUI build ve native testler geçti yazma.
+Run real build and test commands for the relevant scope. Commands are specified in the README according to the solution and toolchain; never report WinUI builds or native tests passed merely because generic `dotnet test` succeeded.
 
-- Core: bilinen crypto vektörleri, tamper/AAD, state/lock-race, validation.
-- Storage: gerçek SQLite, transaction, WAL/journal/backup canary taraması, migration.
-- Recovery: farklı test ortamında restore; yanlış parola/bozuk dosya aktif kasayı değiştirmez.
-- Windows: tray/session/DPI/UIA gerçek hedef testleri.
-- Browser: origin/frame/navigation, native-host/IPC ve malformed/replay testleri.
-- Release: temiz VM kurulum/upgrade/uninstall ve imza kontrolü.
+- Core: known crypto vectors, tamper/AAD, state/lock race, bounded validation.
+- Storage: real SQLite, transactions, WAL/journal/backup canary scans, migrations.
+- Recovery: restore in distinct test profiles; invalid passwords or damaged files do not alter active vaults.
+- Windows: tray, session, DPI, and UI Automation target verification tests.
+- Browser: origin/frame/navigation, native-host IPC, and malformed/replay tests.
+- Release: clean VM installation, upgrade, uninstallation, and signature verification.
 
-Kod değişikliği bittikten sonra `git diff --check`, ilgili test/build ve hassas/üretilmiş dosya kontrolünü tamamla. Geçerli doğrulamalar yeni değişiklik/failure olmadan gereksiz tekrar edilmez.
+After code changes, complete `git diff --check`, execute relevant tests, and verify no sensitive or generated artifacts were introduced. Valid verifications are not needlessly repeated without modifications or failures.
 
-UI testinde screenshot veya test log'unda gerçek secret kullanma. Çalıştırılamayan kontrolü `Not run`/`Manual verification pending` olarak kaydet. Test sayısı veya başarı kanıtı uydurma.
+Never include real secrets in UI test screenshots or logs. Record unexecuted checks as `Not run` or `Manual verification pending`. Never fabricate test counts or success claims.
 
-## 9. Belge ve teslim standardı
+## 9. Documentation & Delivery Standards
 
-Her alt görev sonunda `docs/PROJECT_STATUS.md` güncellenir:
+Update `docs/PROJECT_STATUS.md` at the end of each subtask:
 
-- Tarih, aktif milestone/alt görev ve tamamlanan iş.
-- Çalıştırılmış komutlar ve gerçek sonuçlar.
-- Manuel doğrulama durumu, açık sorun/engel ve risk.
-- Yeni/güncellenen ADR'ler ve sıradaki alt görev.
+- Date, active milestone/subtask, and completed scope.
+- Executed commands and real results.
+- Manual verification status, open issues/blockers, and risks.
+- New or updated ADRs, and the next subtask.
 
-Format/API davranışı değiştiyse ilgili VAULT_FORMAT, THREAT_MODEL, BACKUP_AND_RECOVERY, MANUAL_TESTS ve test matrisi de güncellenir. Kullanıcıya kısa rapor ver: sonuç, doğrulama, kalan engel ve sonraki görev. Belgelenmemiş varsayımı “onaylandı” veya “güvenli” diye yazma.
+When format or API behavior changes, update `VAULT_FORMAT.md`, `THREAT_MODEL.md`, `BACKUP_AND_RECOVERY.md`, `MANUAL_TESTS.md`, and the security test matrix. Provide a concise report to the user: outcome, verification evidence, remaining blockers, and next task. Never describe an undocumented assumption as "verified" or "secure".
 
-Bir güvenlik kararı veri formatını geri dönülmez değiştiriyorsa, doğrulanabilir spike/ADR/test planını hazırla; mevcut oturum yetkisi ve roadmap gate'ine göre ilerle. Zorunlu insan/gerçek cihaz kontrolü varsa işi tamamlandı saymak yerine somut test adımlarını bırak.
+If a security decision permanently changes the data format, prepare a verifiable spike/ADR/test plan before proceeding. If human or physical device verification is required, provide concrete test steps rather than marking the task as complete prematurely.

@@ -1,79 +1,79 @@
-# Depolama Mimarisi, Dizin Güvenliği (ACL) ve Tek Örnek Yönetimi
+﻿# Storage Architecture, Directory Security (ACL), and Single-Instance Management
 
-* **Sürüm:** 1.0 (M0.6)  
-* **Tarih:** 7 Ekim 2026  
-* **Hedef Platform:** Windows 11 x64  
+* **Version:** 1.0 (M0.6)
+* **Date:** October 7, 2026
+* **Target Platform:** Windows 11 x64
 
 ---
 
-## 1. Veri Yolları: Paketli (Packaged / MSIX) vs. Paketsiz (Unpackaged)
+## 1. Storage Paths: Packaged (MSIX) vs. Unpackaged
 
-`PasswordManager`, geliştirme ve yerel araç zinciri esnekliği için başlangıçta **Unpackaged (`WindowsPackageType=None`)** olarak çalışmakta, M9 aşamasında ise **MSIX** paketleme seçeneğini değerlendirmektedir. Bu nedenle veri yolları ortam farkını şeffaf şekilde yöneten `IStoragePathProvider` portu ile soyutlanmıştır.
+To maintain flexibility during development and local toolchain workflows, `PasswordManager` initially operates as **Unpackaged (`WindowsPackageType=None`)**, evaluating **MSIX** packaging at Milestone M9. Therefore, storage paths are abstracted via the `IStoragePathProvider` port to handle environment differences transparently.
 
-| Ortam | Kök Depolama Yolu (Data Root) | SQLite Kasa Dosyası | Yedekler Klasörü |
+| Environment | Data Root Path | SQLite Vault File | Backups Directory |
 | :--- | :--- | :--- | :--- |
-| **Unpackaged (Masaüstü)** | `%LOCALAPPDATA%\PasswordManager` | `%LOCALAPPDATA%\PasswordManager\vault.db` | `%LOCALAPPDATA%\PasswordManager\backups\` |
+| **Unpackaged (Desktop)** | `%LOCALAPPDATA%\PasswordManager` | `%LOCALAPPDATA%\PasswordManager\vault.db` | `%LOCALAPPDATA%\PasswordManager\backups\` |
 | **Packaged (MSIX Container)** | `%LOCALAPPDATA%\Packages\<PackageFamilyName>\LocalState` | `...\LocalState\vault.db` | `...\LocalState\backups\` |
 
-### Ortam Tespiti
-Uygulama başlangıcında Win32 `GetCurrentPackageFullName` API'si çağrılır. API `APPMODEL_ERROR_NO_PACKAGE` (15700) döndürürse sürecin paketsiz Win32 olduğu kesinleşir ve `%LOCALAPPDATA%\PasswordManager` yolu kullanılır.
+### Environment Detection
+At application startup, the Win32 `GetCurrentPackageFullName` API is invoked. If the API returns `APPMODEL_ERROR_NO_PACKAGE` (15700), the process is confirmed to be unpackaged Win32, and the `%LOCALAPPDATA%\PasswordManager` path is used.
 
 ---
 
-## 2. SQLite Dosya Yapısı ve WAL Davranışı
+## 2. SQLite File Structure and WAL Behavior
 
-Veritabanı motoru yüksek performans ve eşzamanlılık için SQLite **Write-Ahead Logging (WAL)** modunu kullanacaktır.
+The storage engine employs SQLite **Write-Ahead Logging (WAL)** mode for high performance and concurrency.
 
-1. **`vault.db`**: Ana veritabanı dosyası (şifreli zarflar ve manifest).
-2. **`vault.db-wal`**: Write-Ahead Log günlüğü (tamamlanmamış veya henüz checkpoint edilmemiş işlemler).
-3. **`vault.db-shm`**: Paylaşılan bellek indeks dosyası.
+1. **`vault.db`**: Primary database file (encrypted envelopes and manifest).
+2. **`vault.db-wal`**: Write-Ahead Log journal (uncommitted transactions or uncheckpointed frames).
+3. **`vault.db-shm`**: Shared memory index file.
 
 > [!CAUTION]
-> **Yedekleme Güvenliği:** Bir kasa yedeklenirken veya taşınırken sadece `vault.db` dosyasını kopyalamak WAL içindeki güncel kayıtların kaybolmasına yol açabilir. M3 aşamasındaki yedekleme mantığı SQLite Online Backup API veya atomik checkpoint snapshot mekanizması kullanacaktır.
+> **Backup Security:** When backing up or migrating a vault, copying only the `vault.db` file while a WAL file exists will result in losing recent uncheckpointed writes. The backup logic in Milestone M3 will utilize the SQLite Online Backup API or an atomic checkpoint snapshot mechanism.
 
 ---
 
-## 3. Windows NTFS Dizin Güvenliği (ACL Kuralları)
+## 3. Windows NTFS Directory Security (ACL Policy)
 
-Kullanıcının parolalarını içeren şifreli dosyalara aynı makinedeki diğer yerel kullanıcı hesaplarının erişmesini önlemek amacıyla, kök klasör oluşturulurken katı Windows NTFS Erişim Denetim Listesi (ACL) uygulanır:
+To prevent other local user accounts on the same machine from accessing the encrypted vault files, a strict Windows NTFS Access Control List (ACL) is enforced when creating the root storage directory:
 
-1. **Kalıtımın Devre Dışı Bırakılması (Inheritance Protection):**  
-   Üst dizinden (`C:\Users\<User>`) gelebilecek izin kalıtımı `SetAccessRuleProtection(isProtected: true, preserveInheritance: false)` ile iptal edilir.
-2. **Kısıtlı İzin Matrisi:**
-   - **Mevcut Kullanıcı (`WindowsIdentity.GetCurrent().User`):** `FullControl` (Tam Denetim).
-   - **Yerel Yöneticiler (`BuiltinAdministratorsSid`):** `FullControl`.
-   - **Yerel Sistem (`LocalSystemSid`):** `FullControl`.
-   - **Diğer Kullanıcılar (`Users`, `Authenticated Users`, `Everyone`):** **Erişim Yok.**
+1. **Inheritance Protection:**
+   Inheritance from parent directories (`C:\Users\<User>`) is disabled via `SetAccessRuleProtection(isProtected: true, preserveInheritance: false)`.
+2. **Restricted Access Control Matrix:**
+   - **Current User (`WindowsIdentity.GetCurrent().User`):** `FullControl`.
+   - **Local Administrators (`BuiltinAdministratorsSid`):** `FullControl`.
+   - **Local System (`LocalSystemSid`):** `FullControl`.
+   - **Other Users (`Users`, `Authenticated Users`, `Everyone`):** **No Access.**
 
 ---
 
-## 4. Tek Örnek (Single Instance) Yaşam Döngüsü
+## 4. Single-Instance Lifecycle Management
 
-Uygulamanın aynı kullanıcı oturumu altında birden fazla kez açılması veritabanı kilit yarışlarına ve bellek tutarsızlıklarına yol açabilir.
+Launching multiple concurrent instances of the application under the same user session can cause database lock contention and memory inconsistency.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as Kullanıcı
-    participant NewApp as İkinci Instance
+    actor User as User
+    participant NewApp as Secondary Instance
     participant OS as Windows Kernel (Mutex / Event)
-    participant PrimaryApp as Aktif Ana Instance
+    participant PrimaryApp as Active Primary Instance
 
-    User->>NewApp: Uygulamayı Başlat (Tıkla / Kısayol)
+    User->>NewApp: Launch Application (Click / Shortcut)
     NewApp->>OS: TryAcquire(Local\PasswordManager_SingleInstance_Mutex_UserSID)
-    alt Mutex Başarıyla Alındı (İlk Instance)
-        OS-->>NewApp: Sahiplik Verildi (Primary)
-        NewApp->>OS: EventWaitHandle Dinleyicisi Başlat
-        NewApp->>NewApp: WinUI Shell Göster
-    else Mutex Dolu (İkinci Instance)
-        OS-->>NewApp: Sahiplik Reddedildi (Already Running)
-        NewApp->>OS: EventWaitHandle.Set() (Aktivasyon Sinyali Gönder)
-        OS-->>PrimaryApp: ActivationRequested Olayı Tetiklendi
-        PrimaryApp->>PrimaryApp: Pencereyi Öne Getir (BringToForeground)
-        NewApp->>NewApp: Süreci Sessizce Sonlandır (Exit)
+    alt Mutex Acquired Successfully (First Instance)
+        OS-->>NewApp: Ownership Granted (Primary)
+        NewApp->>OS: Start EventWaitHandle Listener
+        NewApp->>NewApp: Display WinUI Shell
+    else Mutex Busy (Secondary Instance)
+        OS-->>NewApp: Ownership Denied (Already Running)
+        NewApp->>OS: EventWaitHandle.Set() (Send Activation Signal)
+        OS-->>PrimaryApp: ActivationRequested Event Triggered
+        PrimaryApp->>PrimaryApp: Bring Window to Foreground
+        NewApp->>NewApp: Exit Process Silently
     end
 ```
 
-### Tasarım İlkeleri:
-1. **Oturum İzolasyonu:** Mutex ve olay adları `Local\` namespace'inde ve kullanıcı SID'si ile adlandırılır (`Local\PasswordManager_SingleInstance_Mutex_Default_{UserSID}`). Böylece Windows Çoklu Kullanıcı (Fast User Switching) ortamında farklı kullanıcılar kendi oturumlarında bağımsız olarak uygulamayı çalıştırabilir.
-2. **Kullanıcı Deneyimi:** Kullanıcı uygulamayı açıkken masaüstü veya başlat menüsünden tekrar açtığında yeni bir kopya açılmaz; var olan aktif pencere öne getirilir.
+### Design Principles:
+1. **Session Isolation:** Mutex and event handles reside in the `Local\` namespace and incorporate the user's SID (`Local\PasswordManager_SingleInstance_Mutex_Default_{UserSID}`). In Windows Fast User Switching environments, distinct users can run their own application instances independently.
+2. **User Experience:** When the user launches the application while it is already running, a duplicate instance does not open; instead, the active window is brought to the foreground.
